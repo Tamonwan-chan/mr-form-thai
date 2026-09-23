@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medication Reconciliation - Data Entry</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#ffffff; --border:#dde3e8; --text:#1f2937;
+    --muted:#6b7280; --accent:#2563eb; --accent-dark:#1d4ed8;
+    --danger:#dc2626; --danger-bg:#fef2f2; --ok:#16a34a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:24px 16px 80px;
+    font-family:'Sarabun','Leelawadee UI','Segoe UI',sans-serif;
+    background:var(--bg); color:var(--text); font-size:15px;
+  }
+  .wrap{max-width:920px; margin:0 auto;}
+  h1{font-size:20px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; margin-bottom:16px;
+  }
+  .row-cards{display:flex; gap:16px; flex-wrap:wrap; align-items:stretch;}
+  .row-cards > .card{margin-bottom:16px;}
+  .card h2{font-size:15px; margin:0 0 12px; color:var(--accent-dark);}
+  .row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
+  .field{flex:1; min-width:160px; display:flex; flex-direction:column; gap:4px;}
+  label{font-size:12.5px; color:var(--muted); font-weight:600;}
+  input[type=text], input[type=date], textarea, select{
+    padding:8px 10px; border:1px solid var(--border); border-radius:6px;
+    font-size:14.5px; font-family:inherit; width:100%; background:#fff;
+  }
+  input:focus, textarea:focus, select:focus{outline:2px solid #93c5fd; border-color:var(--accent);}
+  .radio-group{display:flex; gap:16px; align-items:center; padding:6px 0;}
+  .radio-group label{display:flex; align-items:center; gap:6px; font-size:14px; color:var(--text); font-weight:400;}
+  .hint{font-size:12px; color:var(--muted); margin-top:2px;}
+  .btn{
+    padding:8px 14px; border-radius:6px; border:1px solid var(--border);
+    background:#fff; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--text);
+  }
+  .btn:hover{background:#f1f5f9;}
+  .btn-accent{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn-accent:hover{background:var(--accent-dark);}
+  .btn-danger{color:var(--danger); border-color:#fecaca;}
+  .btn-danger:hover{background:var(--danger-bg);}
+  .btn-sm{padding:4px 9px; font-size:12.5px;}
+  .allergy-row, .med-row{
+    border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fbfcfd;
+  }
+  .med-row .row{margin-bottom:6px;}
+  .med-row-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .med-index{font-weight:700; color:var(--accent-dark); font-size:13.5px;}
+  .med-actions{display:flex; gap:6px;}
+  .preview{font-size:12.5px; color:var(--ok); font-family:Consolas,monospace; min-height:16px;}
+  .code-hint{font-size:11.5px; color:var(--muted); line-height:1.5;}
+  #output{
+    width:100%; min-height:220px; font-family:Consolas,'Cascadia Mono',monospace;
+    font-size:14px; white-space:pre-wrap; line-height:1.6;
+  }
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .badge{
+    display:inline-block; background:#eef2ff; color:var(--accent-dark);
+    border-radius:20px; padding:2px 10px; font-size:12px; font-weight:600;
+  }
+  .footer-note{font-size:12px; color:var(--muted); margin-top:6px;}
+  .flash{position:fixed; top:16px; right:16px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; font-size:13.5px; opacity:0; transform:translateY(-6px); transition:.2s; pointer-events:none;}
+  .flash.show{opacity:1; transform:translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Medication Reconciliation — Data Entry</h1>
+  <div class="sub">กรอกข้อมูลแล้วคัดลอกข้อความด้านล่างไปวางในเวชระเบียน</div>
+
+  <div class="row-cards">
+    <!-- Header -->
+    <div class="card" style="flex:1; min-width:220px;">
+      <h2>วันที่บันทึก</h2>
+      <div class="row">
+        <div class="field" style="max-width:200px;">
+          <input type="date" id="noteDate">
+        </div>
+        <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+          <button class="btn btn-danger" id="clearBtn" type="button">ล้างฟอร์ม</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Allergy -->
+    <div class="card" style="flex:1; min-width:280px;">
+      <h2>ประวัติแพ้ยา</h2>
+      <div class="radio-group">
+        <label><input type="radio" name="allergyStatus" value="no" id="allergyNo" checked> ไม่มีประวัติแพ้ยา</label>
+        <label><input type="radio" name="allergyStatus" value="yes" id="allergyYes"> มีประวัติแพ้ยา</label>
+      </div>
+      <div id="allergyBlock" style="display:none;">
+        <div id="allergyRows"></div>
+        <button class="btn btn-sm" id="addAllergyBtn" type="button">+ เพิ่มรายการแพ้ยา</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Source -->
+  <div class="card">
+    <h2>แหล่งที่มาของยา</h2>
+    <div class="row">
+      <div class="field">
+        <label>ผู้ป่วยรับยาที่ (พิมพ์ต่อท้าย "ที่" เช่น รพสต.ต้นเปา)</label>
+        <input type="text" id="facility" list="hospitalOptions" placeholder="รพสต.ต้นเปา">
+      </div>
+      <div class="field" style="max-width:170px;">
+        <label>วันที่รับยา</label>
+        <input type="date" id="receivedDate">
+      </div>
+      <div class="field" style="max-width:170px;">
+        <label><input type="checkbox" id="includeFU" checked style="width:auto; margin-right:4px;">วันนัด f/u</label>
+        <input type="date" id="fuDate">
+      </div>
+    </div>
+  </div>
+
+  <!-- Medications -->
+  <div class="card">
+    <h2>รายการยา <span class="badge" id="medCount">0 รายการ</span></h2>
+    <div class="code-hint">
+      รหัสระบุวิธีใช้ (พิมพ์แล้วระบบแปลงอัตโนมัติ): <b>ขนาดยา*จำนวนครั้งต่อวัน + ac/pc</b> เช่น <code>1*2pc</code> → <code>1x2 pc</code>,
+      <code>1*4ac</code> → <code>1x4 ac</code> &nbsp;|&nbsp; <b>ก่อนนอน:</b> <code>1*hs</code> → <code>1x1 hs</code>
+      &nbsp;|&nbsp; <b>อินซูลิน (2-4 มื้อ):</b> <code>10-2-1-8</code> → <code>10-2-1-8 unit sc ac</code>
+      &nbsp;|&nbsp; พิมพ์รูปแบบอื่นได้อิสระ ระบบจะไม่แปลงและใช้ข้อความตามที่พิมพ์
+    </div>
+    <div id="medRows" style="margin-top:10px;"></div>
+    <button class="btn btn-accent btn-sm" id="addMedBtn" type="button">+ เพิ่มรายการยา</button>
+  </div>
+
+  <!-- Output -->
+  <div class="card">
+    <h2>ข้อความสำหรับคัดลอก</h2>
+    <textarea id="output" readonly></textarea>
+    <div class="toolbar">
+      <button class="btn btn-accent" id="copyBtn" type="button">📋 คัดลอกข้อความ</button>
+    </div>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<template id="medRowTpl">
+  <div class="med-row">
+    <div class="med-row-head">
+      <span class="med-index"></span>
+      <div class="med-actions">
+        <button class="btn btn-sm move-up" type="button" title="เลื่อนขึ้น">▲</button>
+        <button class="btn btn-sm move-down" type="button" title="เลื่อนลง">▼</button>
+        <button class="btn btn-sm btn-danger remove-med" type="button">ลบ</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:2; min-width:220px;">
+        <label>ชื่อยา (เลือกจากรายการ หรือพิมพ์อิสระ)</label>
+        <input type="text" class="med-name" list="drugListOptions" placeholder="เริ่มพิมพ์ชื่อยา...">
+      </div>
+      <div class="field" style="max-width:120px;">
+        <label>ความแรง</label>
+        <input type="text" class="med-strength" placeholder="เช่น 10">
+      </div>
+      <div class="field" style="max-width:220px;">
+        <label>วิธีใช้ (รหัส หรือพิมพ์อิสระ)</label>
+        <input type="text" class="med-regimen" placeholder="1*2pc, 1*hs, 10-2-1-8 ...">
+      </div>
+    </div>
+    <div class="preview"></div>
+  </div>
+</template>
+
+<template id="allergyRowTpl">
+  <div class="allergy-row">
+    <div class="row" style="margin-bottom:0;">
+      <div class="field">
+        <label>ชื่อยาที่แพ้</label>
+        <input type="text" class="al-drug" list="drugListOptions" placeholder="เช่น Penicillin">
+      </div>
+      <div class="field" style="flex:2;">
+        <label>อาการแพ้</label>
+        <input type="text" class="al-reaction" placeholder="เช่น อาการผื่นคันทั่วร่างกาย">
+      </div>
+      <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+        <button class="btn btn-sm btn-danger remove-allergy" type="button">ลบ</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<datalist id="drugListOptions"></datalist>
+
+<datalist id="hospitalOptions">
+  <option value="รพ.นครพิงค์">
+  <option value="รพ.สันป่าตอง">
+  <option value="รพ.แมคคอมิก">
+  <option value="รพ.แม่ออน">
+  <option value="รพ.สวนดอก">
+  <option value="รพ.สวนปรุง">
+  <option value="รพ.สันทราย">
+  <option value="รพ.ประสาท">
+  <option value="รพ.ธัญรักษ์">
+  <option value="รพ.โนนสะอาด">
+  <option value="รพ.ประสาทเชียงใหม่">
+  <option value="รพ.พร้าว">
+</datalist>
+
+<script>
+const DRUG_LIST = ["2 - PAM 1g Vial/Amp", "Acetate Ringer 1000 ml ถุง", "Acetylcysteine 300mg/3ml Vial/Amp", "Acyclovir 400 mg. เม็ด", "Adrenaline 1mg. in 1ml Vial/Amp", "Adrenosine 6mg/2ml Vial/Amp", "Albendazole 200 mg เม็ด", "Albendazole 200mg/5ml, 10ml ขวด", "Alcohol 70% 70%,450ml ขวด", "Alcohol 70% 70%,60ml ขวด", "Alcohol 95% 95%,450ml ขวด", "Alfacalcidol 0.25mcg เม็ด", "Allopurinol 100 mg เม็ด", "Amikacin SO4 500mg/2ml Vial/Amp", "Amiloride+HCTZ 5+50mg เม็ด", "Amiodarone HCl 200 mg(Cordaron เม็ด", "Amiodarone HCl 150mg/3ml. Vial/Amp", "Amitriptyline 10 mg เม็ด", "Amitriptyline 25 mg เม็ด", "Amlodipine 5 mg. เม็ด", "Amlodipine 10 mg. เม็ด", "Ammonia aromatic 60 ml. ขวด", "Amox.+Clav. 1.2g Vial/Amp", "Amox.+Clav. 875+125mg. เม็ด", "Amox.+Clav. 457mg/5ml,70ml ขวด", "Amoxycillin 250 mg เม็ด", "Amoxycillin 500 mg เม็ด", "Amoxycillin 125 mg/5 ml ขวด", "Amoxycillin 250 mg/5 ml ขวด", "Amphotericin B 50 mg Vial/Amp", "Ampicillin 1 gm Vial/Amp", "Antazoline+teryzoline+etc 10 ml ขวด", "Aspirin EC 81 mg เม็ด", "Aspirin EC 300 mg เม็ด", "Atenolol 100 mg เม็ด", "Atenolol 50 mg. เม็ด", "Atorvastatin 40mg เม็ด", "Atropine SO4 0.6 mg in 1ml. Vial/Amp", "Azathioprine 50mg เม็ด", "Baclofen 10mg เม็ด", "Benzathine Pen G 1.2 mu Vial/Amp", "Benzhexol 2 mg เม็ด", "Benzyl benzoate 60 ml. ขวด", "Berodual forte 2:2 ขวด", "Betamethasone 0.1% in 15gm หลอด", "Budesonide 200mcg,200dose อัน", "Budesonide nasal spray,120dose 64 mcg/dose ขวด", "C.P.M. 4 mg เม็ด", "C.P.M. 2 mg/5 ml ขวด", "C.P.M. 10mg in 1ml. Vial/Amp", "Cal polystyrene sulfonate 5g ซอง", "Calamine 60ml ขวด", "Calcium carbonate 1.5g เม็ด", "Calcium gluconate 1g/10ml Vial/Amp", "Captopril 25 mg เม็ด", "Carbamazepine 200mg เม็ด", "Carminative 180ml ขวด", "Carvedilol 6.25mg เม็ด", "Carvedilol 12.50mg เม็ด", "Cefazolin 1g Vial/Amp", "Cefotaxime 1 gm Vial/Amp", "Ceftazidime 1 gm Vial/Amp", "Ceftriaxone 1 gm Vial/Amp", "Cetirizine HCl 10 mg เม็ด", "Charcoal, activated 50 gm/pack ถุง", "Chloramphenicol eye dr 10ml ขวด", "Chloramphenicol ear dr.1%in10ml ขวด", "Chlorhexidine mouth wash 0.12% ขวด", "Chlorhexidine scrub 4%in5lit. ขวด", "Chlorhexidine scrub 4%in500ml ขวด", "Chloroquine 250 mg เม็ด", "Chlorpromazine 25 mg เม็ด", "Chlorpromazine 100 mg เม็ด", "Ciprofloxacin 250 mg เม็ด", "Ciprofloxacin 400mg/vial Vial/Amp", "Clarithromycin 500mg เม็ด", "Clindamycin 300 mg เม็ด", "Clindamycin 600mg/4ml Vial/Amp", "Clobetasol propionate 0.05%,5g หลอด", "Clonazepam 2mg เม็ด", "Clonazepam 0.5 mg เม็ด", "Clopidogrel 75 mg เม็ด", "Clotrimazole 10mg หลอด", "Clotrimazole,15G 0.1% in 15gm หลอด", "Clotrimazole vag. 100 mg เม็ด", "Cloxacillin 1 gm Vial/Amp", "Clozapine 100mg เม็ด", "Clozapine 25mg เม็ด", "Coal tar sol 450 ml ขวด", "Colchicine 0.6 mg เม็ด", "Colistin 150mg/vial Vial/Amp", "Conjugated estrogen 0.625 mg เม็ด", "Cotrimoxazole 400+80mg เม็ด", "Cotrimoxazole 200+40mg/5ml ขวด", "Cream base 500 g กระปุก", "Cream base 1 kg กระปุก", "D.5.S 500ml. ถุง", "D-10-S 1000ml ถุง", "D-10-S/2 1000ml ถุง", "D-5-S 1000 ml. ถุง", "D-5-S/2 1000 ml. ถุง", "D-5-S/3 500 ml. ถุง", "D-5-S/5 500 ml. ถุง", "D-5-W 100 ml. Vial/Amp", "D-5-W 1000 ml. ถุง", "D-5-W 250 ml. ถุง", "Dapsone 100 mg เม็ด", "Deferiprone 500mg เม็ด", "Dexamethasone 4 mg in1ml. Vial/Amp", "Dexa+Neo. eye dr.4 ml ขวด", "Dextromethorphan 15 mg เม็ด", "Diazepam 2 mg เม็ด", "Diazepam 5 mg เม็ด", "Diazepam 10mg. in2ml. Vial/Amp", "Diclofenac 25 mg เม็ด", "Dicloxacillin 250mg เม็ด", "Dicloxacillin 62.5mg/5ml ขวด", "Diethylcarbamazine 300mg เม็ด", "Digoxin 0.25 mg เม็ด", "Digoxin 0.25 mg in 2 ml Vial/Amp", "Dimenhydrinate 50 mg เม็ด", "Dimenhydrinate 50mg in 1ml. Vial/Amp", "Dipotassium clorazepate 5 mg เม็ด", "Dolutegravir 50mg เม็ด", "Domperidone 10 mg เม็ด", "Domperidone 1 mg/ml in 30 m ขวด", "Dopamine HCl 250mg in10ml Vial/Amp", "Doxazosin 2mg เม็ด", "Doxycycline HCl 100 mg เม็ด", "dT vaccine 0.5ml Vial/Amp", "dT vaccine 5ml Vial/Amp", "Duproct supp. เม็ด", "Efavirenz 600mg เม็ด", "Enalapril 5 mg เม็ด", "Enalapril 20 mg เม็ด", "Enoxaparin 40mg Vial/Amp", "Enoxaparin 60mg Vial/Amp", "Ergotamine+Caff. 1+100mg เม็ด", "Erythromycin 60 ml. 125mg/5ml. ขวด", "ERIG 1000 iu vial,5ml Vial/Amp", "Ethambutol 400mg เม็ด", "Ethambutol 500mg เม็ด", "Etonogestrel 68mg หลอด", "Favipiravir 200mg เม็ด", "Fenofibrate 200mg เม็ด", "Fentanyl citrate 50mcg/2ml Vial/Amp", "Ferrous fumarate 200mg เม็ด", "Ferrous fumarate drops 15 mg Fe/0.6ml ขวด", "Finesteride 5mg เม็ด", "Fluconazole 200 mg เม็ด", "Fluoxetine HCl 20 mg เม็ด", "Fluphenazine dec. 25mg in 1ml. Vial/Amp", "Fluticasone furoate 27.5mcg/spray ขวด", "Folic acid 5 mg เม็ด", "Formaldehyde 40% in 450 ml ขวด", "Furosemide 40 mg เม็ด", "Furosemide 500 mg เม็ด", "Furosemide 20 mg in 2 ml Vial/Amp", "Furosemide 250 mg/25ml. Vial/Amp", "Gabapentine 300mg เม็ด", "Gemfibrozil 300 mg เม็ด", "Gentamicin SO4 80mg in 2ml. Vial/Amp", "Glipizide 5 mg. เม็ด", "Glucose 50% 50%,50ml Vial/Amp", "Glycerin 450ml ขวด", "Glyceryl guaiacolate 100mg เม็ด", "Glyceryl guaiacolate 100mg/5ml 60ml ขวด", "Griseofulvin 500 mg เม็ด", "Haloperidol 0.5 mg เม็ด", "Griseofulvin 500 mg เม็ด", "Haloperidol 0.5 mg เม็ด", "Haloperidol 2 mg เม็ด", "Haloperidol 5 mg เม็ด", "Haloperidol 5 mg. in 1 ml Vial/Amp", "Haloperidol dec. 50 mg in 1ml. Vial/Amp", "HCTZ 25 mg เม็ด", "Hydralazine 25 mg เม็ด", "Hydralazine 20mg/amp Vial/Amp", "Hydrocortisone 100mg/2ml Vial/Amp", "Hydrogen peroxide 20 vol.in450ml. ขวด", "Hydroxyzine HCl 10 mg เม็ด", "Hydroxychloroquine 200mg เม็ด", "Hyoscine 10mg เม็ด", "Hyoscine 5mg/5ml in 30ml ขวด", "Hyoscine 20mg/1ml(Buscop Vial/Amp", "Ibuprofen 200 mg เม็ด", "Ibuprofen 400 mg เม็ด", "Ibuprofen 60 ml 100mg/5ml ขวด", "Ipratopium+Fenoterol 20ml ขวด", "Ipratopium+Fenoterol 0.02mg+0.05mg/d อัน", "Imipramine HCl 25 mg เม็ด", "Isoniazid 100mg เม็ด", "Isosorbide dinitrate 10 mg เม็ด", "Isosorbide dinitrate subling. 5mg เม็ด", "Isosorbide mononitrate 20 mg เม็ด", "Itraconazole 100 mg เม็ด", "KCL 20mEq in 10ml Vial/Amp", "KCL 500 mg เม็ด", "KCL 500mg/5ml,240ml ขวด", "Ketoconazole 200 mg เม็ด", "Lactulose 66.7%,100ml ขวด", "Lamivudine 150mg เม็ด", "Lamivudine 300mg เม็ด", "Lamivudine 10mg/ml ขวด", "Levomed 250+25mg เม็ด", "Levonorgestrel(Postinor) 0.75mg เม็ด", "Lidocaine 2% in 50 ml Vial/Amp", "Lidocaine viscous 100ml ขวด", "Lithium carbonate 300 mg เม็ด", "Loperamide 2 mg เม็ด", "Lorazepam 0.5 mg เม็ด", "Lorazepam 2 mg เม็ด", "Losartan 50mg เม็ด", "lynestrenol(Exluton) 0.5mg,28's เม็ด", "Magnesium SO4 50% in 2ml Vial/Amp", "Manidipine HCL 20 mg เม็ด", "Medroxyprogesterone 150mg/3ml(Depo- Vial/Amp", "Meropenam 1g/vial Vial/Amp", "Metformin 500 mg เม็ด", "Methimazole 5 mg เม็ด", "Methotrexate 2.5 mg เม็ด", "Methyldopa 250 mg เม็ด", "Methylergometrine 0.2mg in1ml Vial/Amp", "Metoclopramide 10 mg เม็ด", "Metoclopramide 10mg / 2ml. Vial/Amp", "Metoprolol 100 mg เม็ด", "Metronidazole 200 mg เม็ด", "Metronidazole 0.5% in 100ml Vial/Amp", "Milk of magnesia 240ml ขวด", "Mixtard Insulin 30:70 in 10ml Vial/Amp", "Molnupiravir 200mg เม็ด", "Morphine SO4 10mg in 1ml. Vial/Amp", "Morphine MST 10mg เม็ด", "Morphine IR 10mg เม็ด", "Mupirocin 2% 5g หลอด", "N.S.S. 3% in 500ml Vial/Amp", "N.S.S.,5ml 0.9% หลอด", "N.S.S.1000ml 0.9% Vial/Amp", "N.S.S.100ml 0.9% Vial/Amp", "N.S.S.Irrigate,1000ml 0.9% ขวด", "Naloxone 0.4mg/ml Vial/Amp", "Nicardipine 10mg/10ml Vial/Amp", "Nifedipine 20 mgSR เม็ด", "Nor-epinephrine 4mg/4ml Vial/Amp", "Norethisterone 5 mg (Primolute- เม็ด", "Norfloxacin 400 mg เม็ด", "Nortriptyline 25mg เม็ด", "Nystatin vag. เม็ด", "NPH Insulin 100 iu/ml,10ml Vial/Amp", "Ofloxacin 200 mg เม็ด", "Omeprazole 20 mg เม็ด", "Omeprazole 40mg/vial Vial/Amp", "ORS Adult 6.975 gm. ซอง", "ORS ped. 5.5g ซอง", "Oseltamivir 75mg เม็ด", "Oseltamivir 30mg เม็ด", "Oseltamivir 45mg เม็ด", "Oxytocin 10iu in 1ml Vial/Amp", "P.G.S. 5.0 mu (3 gm) Vial/Amp", "P.T.U. 50 mg เม็ด", "Paracetamol 120mg/5ml ขวด", "Paracetamol 325 mg เม็ด", "Paracetamol 500 mg เม็ด", "Paracetamol,drop 60mg/0.6ml ขวด", "Perphenazine 4 mg เม็ด", "Pethidine HCl 50mg in 1ml. Vial/Amp", "Phenobarbital 60 mg (gr.1) เม็ด", "Phenytoin Na 100 mg เม็ด", "Phenytoin Na 250mg/5ml Vial/Amp", "Pioglitasone 30mg เม็ด", "Piperacillin+Tazobactam 4.5g/vial Vial/Amp", "Podophyllin 25% ขวด", "Povidone iodine 10% ขวด", "Povidone iodine 110% ขวด", "Povidone iodine scrub 7.5%in450ml ขวด", "Prednisolone 5 mg เม็ด", "Propranolol 10 mg เม็ด", "Propranolol 40 mg เม็ด", "Pyrazinamide 500mg เม็ด", "Rabie vaccine Vial/Amp", "Remdesivir 100mg/vial Vial/Amp", "Regular Insulin 10 ml Vial/Amp", "Rifampicin 300mg เม็ด", "Rifampicin 450mg เม็ด", "Risperidone 1mg เม็ด", "Risperidone 2mg เม็ด", "Roxithromycin 150 mg เม็ด", "Salbutamol 2 mg เม็ด", "Salbutamol 20ml,0.5% ขวด", "Salbutamol 2mg/5ml ขวด", "Salbutamol 0.1mg/dose อัน", "Salicylic acid 25% ขวด", "Seroflo Evohaler 25/125mcg อัน", "Sertraline 50mg เม็ด", "Silver sulfadiazine 1% in 500 gm กระปุก", "Simethicone 80 mg เม็ด", "Simvastatin 20mg เม็ด", "Simvastatin 40mg เม็ด", "Sod.valproate 200 mg,EC เม็ด", "Sod.valproate 500mg CR เม็ด", "Sodium bicarb. 300 mg เม็ด", "Sodium bicarb. 7.5% in 50ml. Vial/Amp", "Sodium chloride 300mg/tab เม็ด", "Special Mouth Wash 3800ml ขวด", "Spironolactone 25 mg เม็ด", "Streptokinase 1.5MIU Vial/Amp", "Sulfasalazine 500 mg เม็ด", "Syrup 450ml ขวด", "T.A. 0.02% in 5 gm หลอด", "T.A. 0.1% in 5 gm หลอด", "T.A. 1g ซอง", "T.A. 10 mg in 1ml. Vial/Amp", "Tenofovir 300mg เม็ด", "TDF+3TC+DTG 300+300+50mg เม็ด", "Terbutaline 0.5mg in 1ml. Vial/Amp", "Terbutaline 2.5 mg เม็ด", "Tetracaine eye dr.0.5%15ml ขวด", "Theophylline 200 mg เม็ด", "Thyroxin Na 0.1 mg เม็ด", "Ticargrelor 90mg เม็ด", "Tramadol 50 mg/ml,2ml Vial/Amp", "Tramadol 50 mg เม็ด", "Tranexamic acid 250mg/5ml Vial/Amp", "Tranexamic acid 250mg เม็ด", "Trazodone 50mg เม็ด", "Triferdine เม็ด", "Trifluoperazine 5 mg เม็ด", "Vancomycin 500 mg/vial Vial/Amp", "Verapamil 40 mg เม็ด", "Verapamil SR 240mg เม็ด", "Vitamin C 100 mg เม็ด", "Vitamin B1 100mg เม็ด", "Vitamin B1 100mg/ml Vial/Amp", "Vitamin B6 50mg เม็ด", "Vitamin D2 20000iu เม็ด", "Vitamin K1 1 mg in 0.5 ml Vial/Amp", "Vitamin K1 10 mg in 1 ml Vial/Amp", "Warfarin Na 3 mg เม็ด", "Warfarin Na 5 mg เม็ด", "Warfarin Na 4 mg เม็ด", "Warfarin Na 2 mg เม็ด", "Water for inj 1000ml Vial/Amp", "Water for inj 100ml Vial/Amp", "Water for inj. 10 ml Vial/Amp", "Water Irrigate 1000ml ขวด", "Whit soft parafin 450g กระปุก", "Whitfield ointment 15g หลอด", "Zidovudine 100mg เม็ด", "Zidovudine 10mg/ml ขวด", "Zinc Oxide 7.5%,5g หลอด", "น้ำตาเทียม 10ml ขวด", "ยาคุมกำเนิด เม็ด 0.03+0.15mg เม็ด", "Carbetocin (DURATOCIN) 500mcg/amp Vial/Amp", "Sulprostone (NALADOR) 500mcg/amp Vial/Amp", "Nevirapine 10mg/ml ขวด", "Betahistine 6 mg เม็ด", "Cefixime 100 mg in10ml. เม็ด", "Ertapenam 1 g Vial/Amp", "(KOCITAF) Emtri+TAF+Dolu(Napha) 200+25+50 mg เม็ด", "Fenofibrate 100mg (NAPHA) เม็ด", "Simvastatin 10mg (NAPHA) เม็ด", "TDF 300 mg (NAPHA) เม็ด", "Gemfibrozil 600 mg (NAPHA) เม็ด", "Unison ผู้ใหญ่ ลูก", "ขมิ้นชัน 500 mg แคปซูล", "Anoro Elipta 62.5+25 mcg อัน", "Spiriva Handihaler 18 mcg อัน", "Syringe Insulin 0.5 ml อัน", "Syringe Insulin 1 ml อัน"];
+
+const $ = (sel, ctx=document) => ctx.querySelector(sel);
+const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+
+// populate drug datalist
+(function populateDrugList(){
+  const dl = $('#drugListOptions');
+  const frag = document.createDocumentFragment();
+  DRUG_LIST.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item;
+    frag.appendChild(opt);
+  });
+  dl.appendChild(frag);
+})();
+
+const DRUG_PARSE_OVERRIDES = {
+  'Mixtard Insulin 30:70 in 10ml Vial/Amp': { name: 'Mixtard Insulin', strength: '70/30' }
+};
+
+function parseDrugString(raw){
+  if (DRUG_PARSE_OVERRIDES[raw]) return DRUG_PARSE_OVERRIDES[raw];
+  const m = raw.match(/^(.*?)\s+([\d.]+(?:[+\/:][\d.]+)*)\s*(mg\.?|mcg|gm?|ml|iu|mu|%|mEq)?/i);
+  if (m && m[1] && m[2]){
+    return { name: m[1].trim().replace(/[.,]+$/,''), strength: m[2] };
+  }
+  return { name: raw.trim(), strength: '' };
+}
+
+function findFirstDrugMatch(query){
+  const q = query.toLowerCase();
+  return DRUG_LIST.find(item => item.toLowerCase().includes(q)) || null;
+}
+
+function toThaiShort(dateStr){
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return '';
+  const day = d.getDate();
+  const month = d.getMonth() + 1;
+  const beYear = d.getFullYear() + 543;
+  const yy = String(beYear).slice(-2);
+  return `${day}/${month}/${yy}`;
+}
+
+function todayISO(){
+  const d = new Date();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function convertRegimen(raw){
+  if (!raw) return '';
+  const s = raw.trim();
+  let m;
+  if (m = s.match(/^(\d+(?:\.\d+)?)\s*\*\s*(\d+(?:\.\d+)?)\s*(ac|pc)\b(.*)$/i)){
+    return `${m[1]}x${m[2]} ${m[3].toLowerCase()}${m[4]}`;
+  }
+  if (m = s.match(/^(\d+(?:\.\d+)?)\s*\*\s*hs\b(.*)$/i)){
+    return `${m[1]}x1 hs${m[2]}`;
+  }
+  if (m = s.match(/^(\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?){1,3})\b(.*)$/)){
+    return `${m[1]} unit sc ac${m[2]}`;
+  }
+  return s;
+}
+
+// ---------- Medication rows ----------
+const medRows = $('#medRows');
+const medTpl = $('#medRowTpl');
+
+function addMedRow(data){
+  const node = medTpl.content.firstElementChild.cloneNode(true);
+  const nameInput = $('.med-name', node);
+  const strengthInput = $('.med-strength', node);
+  const regimenInput = $('.med-regimen', node);
+  const preview = $('.preview', node);
+
+  if (data){
+    nameInput.value = data.name || '';
+    strengthInput.value = data.strength || '';
+    regimenInput.value = data.regimen || '';
+  }
+
+  nameInput.addEventListener('input', () => {
+    if (DRUG_LIST.includes(nameInput.value)){
+      const parsed = parseDrugString(nameInput.value);
+      nameInput.value = parsed.name;
+      strengthInput.value = parsed.strength;
+    }
+    updateOutput();
+  });
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      const val = nameInput.value.trim();
+      if (val && !DRUG_LIST.includes(val)){
+        const match = findFirstDrugMatch(val);
+        if (match){
+          const parsed = parseDrugString(match);
+          nameInput.value = parsed.name;
+          strengthInput.value = parsed.strength;
+          updateOutput();
+        }
+      }
+      strengthInput.focus();
+    }
+  });
+  strengthInput.addEventListener('input', updateOutput);
+  regimenInput.addEventListener('input', () => {
+    preview.textContent = regimenInput.value.trim() ? '→ ' + convertRegimen(regimenInput.value) : '';
+    updateOutput();
+  });
+  regimenInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      if (node === medRows.lastElementChild){
+        addMedRow();
+        $('.med-name', medRows.lastElementChild).focus();
+      }
+    }
+  });
+
+  $('.remove-med', node).addEventListener('click', () => { node.remove(); renumberMeds(); updateOutput(); });
+  $('.move-up', node).addEventListener('click', () => {
+    const prev = node.previousElementSibling;
+    if (prev) medRows.insertBefore(node, prev);
+    renumberMeds(); updateOutput();
+  });
+  $('.move-down', node).addEventListener('click', () => {
+    const next = node.nextElementSibling;
+    if (next) medRows.insertBefore(next, node);
+    renumberMeds(); updateOutput();
+  });
+
+  medRows.appendChild(node);
+  renumberMeds();
+}
+
+function renumberMeds(){
+  $$('.med-row', medRows).forEach((row, i) => {
+    $('.med-index', row).textContent = `#${i+1}`;
+  });
+  $('#medCount').textContent = `${$$('.med-row', medRows).length} รายการ`;
+}
+
+// ---------- Allergy rows ----------
+const allergyRows = $('#allergyRows');
+const allergyTpl = $('#allergyRowTpl');
+
+function addAllergyRow(data){
+  const node = allergyTpl.content.firstElementChild.cloneNode(true);
+  const drugInput = $('.al-drug', node);
+  const reactionInput = $('.al-reaction', node);
+  if (data){
+    drugInput.value = data.drug || '';
+    reactionInput.value = data.reaction || '';
+  }
+  drugInput.addEventListener('input', () => {
+    if (DRUG_LIST.includes(drugInput.value)){
+      drugInput.value = parseDrugString(drugInput.value).name;
+    }
+    updateOutput();
+  });
+  reactionInput.addEventListener('input', updateOutput);
+  $('.remove-allergy', node).addEventListener('click', () => { node.remove(); updateOutput(); });
+  allergyRows.appendChild(node);
+}
+
+$('#addMedBtn').addEventListener('click', () => addMedRow());
+$('#addAllergyBtn').addEventListener('click', () => addAllergyRow());
+
+$('#allergyNo').addEventListener('change', toggleAllergyBlock);
+$('#allergyYes').addEventListener('change', toggleAllergyBlock);
+function toggleAllergyBlock(){
+  const show = $('#allergyYes').checked;
+  $('#allergyBlock').style.display = show ? 'block' : 'none';
+  if (show && allergyRows.children.length === 0) addAllergyRow();
+  updateOutput();
+}
+
+$('#includeFU').addEventListener('change', () => {
+  $('#fuDate').disabled = !$('#includeFU').checked;
+  updateOutput();
+});
+
+const PHARMACIST_NAME = 'ภญ.ธมลวรรณ';
+
+['noteDate','facility','receivedDate','fuDate'].forEach(id => {
+  $('#' + id).addEventListener('input', updateOutput);
+});
+
+// ---------- Output generation ----------
+function generateNote(){
+  const noteDate = toThaiShort($('#noteDate').value) || '-';
+  const lines = [];
+  lines.push(`Pharmacist's note: MR Service (${PHARMACIST_NAME}) ${noteDate}`);
+
+  if ($('#allergyNo').checked){
+    lines.push('ไม่มีประวัติแพ้ยา');
+  } else {
+    const parts = $$('.allergy-row', allergyRows)
+      .map(row => {
+        const drug = $('.al-drug', row).value.trim();
+        const reaction = $('.al-reaction', row).value.trim();
+        return [drug, reaction].filter(Boolean).join(' ');
+      })
+      .filter(Boolean);
+    lines.push(parts.length ? `มีประวัติแพ้ ${parts.join(', ')}` : 'มีประวัติแพ้ยา');
+  }
+
+  const facility = $('#facility').value.trim();
+  const receivedDate = toThaiShort($('#receivedDate').value);
+  const fuDate = $('#includeFU').checked ? toThaiShort($('#fuDate').value) : '';
+  let sourceLine = `ผู้ป่วยรับยาที่${facility}`;
+  if (receivedDate) sourceLine += ` วันที่ ${receivedDate}`;
+  if (fuDate) sourceLine += ` f/u ${fuDate}`;
+  lines.push(sourceLine);
+
+  const meds = $$('.med-row', medRows)
+    .map(row => ({
+      name: $('.med-name', row).value.trim(),
+      strength: $('.med-strength', row).value.trim(),
+      regimen: $('.med-regimen', row).value.trim()
+    }))
+    .filter(m => m.name);
+
+  lines.push(`มีทั้งหมด ${meds.length} รายการ`);
+  meds.forEach((m, i) => {
+    const strengthPart = m.strength ? ` (${m.strength})` : '';
+    const regimenPart = convertRegimen(m.regimen);
+    lines.push(`${i+1}. ${m.name}${strengthPart}${regimenPart ? ' ' + regimenPart : ''}`);
+  });
+
+  return lines.join('\n');
+}
+
+function updateOutput(){
+  $('#output').value = generateNote();
+}
+
+// ---------- Copy ----------
+function showFlash(msg){
+  const el = $('#flash');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+$('#copyBtn').addEventListener('click', async () => {
+  const text = $('#output').value;
+  try{
+    await navigator.clipboard.writeText(text);
+    showFlash('คัดลอกแล้ว');
+  }catch(err){
+    const ta = $('#output');
+    ta.removeAttribute('readonly');
+    ta.select();
+    try{
+      document.execCommand('copy');
+      showFlash('คัดลอกแล้ว');
+    }catch(e2){
+      showFlash('คัดลอกไม่สำเร็จ กรุณาเลือกข้อความด้วยตนเอง');
+    }
+    ta.setAttribute('readonly', 'true');
+  }
+});
+
+// ---------- Clear form ----------
+function resetForm(){
+  $('#noteDate').value = todayISO();
+  $('#allergyNo').checked = true;
+  $('#allergyYes').checked = false;
+  allergyRows.innerHTML = '';
+  $('#allergyBlock').style.display = 'none';
+  $('#facility').value = '';
+  $('#receivedDate').value = todayISO();
+  $('#includeFU').checked = true;
+  $('#fuDate').value = todayISO();
+  $('#fuDate').disabled = false;
+  medRows.innerHTML = '';
+  addMedRow();
+  updateOutput();
+}
+
+$('#clearBtn').addEventListener('click', () => {
+  if (!confirm('ล้างข้อมูลทั้งหมดในฟอร์ม?')) return;
+  resetForm();
+});
+
+// ---------- Init ----------
+$('#noteDate').value = todayISO();
+$('#receivedDate').value = todayISO();
+$('#fuDate').value = todayISO();
+addMedRow();
+updateOutput();
+</script>
+</body>
+</html>
