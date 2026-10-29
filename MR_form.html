@@ -9,6 +9,9 @@
     --bg:#f4f6f8; --card:#ffffff; --border:#dde3e8; --text:#1f2937;
     --muted:#6b7280; --accent:#2563eb; --accent-dark:#1d4ed8;
     --danger:#dc2626; --danger-bg:#fef2f2; --ok:#16a34a;
+    /* section colours */
+    --c-info:#2563eb; --c-allergy:#dc2626; --c-source:#4f46e5; --c-visit:#0d9488;
+    --c-note:#d97706; --c-output:#16a34a;
   }
   *{box-sizing:border-box;}
   body{
@@ -20,12 +23,23 @@
   h1{font-size:20px; margin:0 0 4px;}
   .sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
   .card{
-    background:var(--card); border:1px solid var(--border); border-radius:10px;
-    padding:16px 18px; margin-bottom:16px;
+    --sec:var(--accent);
+    background:var(--card); border:1px solid var(--border); border-top:4px solid var(--sec);
+    border-radius:10px; padding:16px 18px; margin-bottom:16px;
   }
+  .sec-info{--sec:var(--c-info);}
+  .sec-allergy{--sec:var(--c-allergy);}
+  .sec-source{--sec:var(--c-source);}
+  .sec-note{--sec:var(--c-note);}
+  .sec-output{--sec:var(--c-output);}
+  .card.allergy-alert{background:var(--danger-bg); border-color:#fecaca; border-top-color:var(--c-allergy);}
   .row-cards{display:flex; gap:16px; flex-wrap:wrap; align-items:stretch;}
   .row-cards > .card{margin-bottom:16px;}
-  .card h2{font-size:15px; margin:0 0 12px; color:var(--accent-dark);}
+  .card h2{font-size:15px; margin:0 0 12px; color:var(--sec); display:flex; align-items:center; gap:8px;}
+  .step{
+    display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
+    width:22px; height:22px; border-radius:50%; background:var(--sec); color:#fff; font-size:12px;
+  }
   .row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
   .field{flex:1; min-width:160px; display:flex; flex-direction:column; gap:4px;}
   label{font-size:12.5px; color:var(--muted); font-weight:600;}
@@ -66,6 +80,27 @@
     border-radius:20px; padding:2px 10px; font-size:12px; font-weight:600;
   }
   .footer-note{font-size:12px; color:var(--muted); margin-top:6px;}
+  .card-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .card-head h2{margin:0;}
+  .check-inline{display:flex; align-items:center; gap:6px; font-size:14px; color:var(--text); font-weight:600; cursor:pointer;}
+  /* place (hospital) > visit > medication */
+  .source-block{border:1px solid #c7d2fe; border-radius:10px; margin-bottom:14px; background:#f5f7ff; overflow:hidden;}
+  .source-head{display:flex; justify-content:space-between; align-items:center; padding:8px 14px; background:#e0e7ff;}
+  .source-index{font-weight:700; color:#3730a3; font-size:14px;}
+  .source-body{padding:12px 14px;}
+  #sources.single .source-head{display:none;}
+  #sources.single .source-block{border:none; background:none; margin-bottom:0;}
+  #sources.single .source-body{padding:0;}
+  .visit-block{border:1px solid #99f6e4; border-radius:8px; margin-bottom:10px; background:#fff; overflow:hidden;}
+  .visit-head{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 12px; background:#ccfbf1;}
+  .visit-index{font-weight:700; color:#0f766e; font-size:13.5px; display:flex; align-items:center; gap:8px;}
+  .visit-head .badge{background:#fff; color:#0f766e;}
+  .visit-body{padding:10px 12px;}
+  .add-visit{color:#0f766e; border-color:#99f6e4; margin-bottom:4px;}
+  .add-visit:hover{background:#f0fdfa;}
+  .add-source{color:#3730a3; border-color:#c7d2fe;}
+  .add-source:hover{background:#eef2ff;}
+  #freeNote{min-height:80px; resize:vertical;}
   .flash{position:fixed; top:16px; right:16px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; font-size:13.5px; opacity:0; transform:translateY(-6px); transition:.2s; pointer-events:none;}
   .flash.show{opacity:1; transform:translateY(0);}
 </style>
@@ -77,8 +112,8 @@
 
   <div class="row-cards">
     <!-- Header -->
-    <div class="card" style="flex:1; min-width:220px;">
-      <h2>วันที่บันทึก</h2>
+    <div class="card sec-info" style="flex:1; min-width:220px;">
+      <h2><span class="step">1</span>วันที่บันทึก</h2>
       <div class="row">
         <div class="field" style="max-width:200px;">
           <input type="date" id="noteDate">
@@ -90,8 +125,8 @@
     </div>
 
     <!-- Allergy -->
-    <div class="card" style="flex:1; min-width:280px;">
-      <h2>ประวัติแพ้ยา</h2>
+    <div class="card sec-allergy" id="allergyCard" style="flex:1; min-width:280px;">
+      <h2><span class="step">2</span>ประวัติแพ้ยา</h2>
       <div class="radio-group">
         <label><input type="radio" name="allergyStatus" value="no" id="allergyNo" checked> ไม่มีประวัติแพ้ยา</label>
         <label><input type="radio" name="allergyStatus" value="yes" id="allergyYes"> มีประวัติแพ้ยา</label>
@@ -103,41 +138,31 @@
     </div>
   </div>
 
-  <!-- Source -->
-  <div class="card">
-    <h2>แหล่งที่มาของยา</h2>
-    <div class="row">
-      <div class="field">
-        <label>ผู้ป่วยรับยาที่ (พิมพ์ต่อท้าย "ที่" เช่น รพสต.ต้นเปา)</label>
-        <input type="text" id="facility" list="hospitalOptions" placeholder="รพสต.ต้นเปา">
-      </div>
-      <div class="field" style="max-width:170px;">
-        <label>วันที่รับยา</label>
-        <input type="date" id="receivedDate">
-      </div>
-      <div class="field" style="max-width:170px;">
-        <label><input type="checkbox" id="includeFU" checked style="width:auto; margin-right:4px;">วันนัด f/u</label>
-        <input type="date" id="fuDate">
-      </div>
+  <!-- Sources & medications -->
+  <div class="card sec-source">
+    <div class="card-head">
+      <h2><span class="step">3</span>แหล่งที่มาของยาและรายการยา</h2>
+      <label class="check-inline"><input type="checkbox" id="multiSource"> ผู้ป่วยรับยามากกว่า 1 ที่</label>
     </div>
-  </div>
-
-  <!-- Medications -->
-  <div class="card">
-    <h2>รายการยา <span class="badge" id="medCount">0 รายการ</span></h2>
     <div class="code-hint">
       รหัสระบุวิธีใช้ (พิมพ์แล้วระบบแปลงอัตโนมัติ): <b>ขนาดยา*จำนวนครั้งต่อวัน + ac/pc</b> เช่น <code>1*2pc</code> → <code>1x2 pc</code>,
       <code>1*4ac</code> → <code>1x4 ac</code> &nbsp;|&nbsp; <b>ก่อนนอน:</b> <code>1*hs</code> → <code>1x1 hs</code>
       &nbsp;|&nbsp; <b>อินซูลิน (2-4 มื้อ):</b> <code>10-2-1-8</code> → <code>10-2-1-8 unit sc ac</code>
       &nbsp;|&nbsp; พิมพ์รูปแบบอื่นได้อิสระ ระบบจะไม่แปลงและใช้ข้อความตามที่พิมพ์
     </div>
-    <div id="medRows" style="margin-top:10px;"></div>
-    <button class="btn btn-accent btn-sm" id="addMedBtn" type="button">+ เพิ่มรายการยา</button>
+    <div id="sources" class="single" style="margin-top:12px;"></div>
+    <button class="btn btn-sm add-source" id="addSourceBtn" type="button" style="display:none;">+ เพิ่มแหล่งรับยา (โรงพยาบาลอื่น)</button>
+  </div>
+
+  <!-- Free-text note -->
+  <div class="card sec-note">
+    <h2><span class="step">4</span>หมายเหตุ (พิมพ์อิสระ)</h2>
+    <textarea id="freeNote" placeholder="พิมพ์ข้อความเพิ่มเติม ข้อความนี้จะต่อท้ายในข้อความสำหรับคัดลอก"></textarea>
   </div>
 
   <!-- Output -->
-  <div class="card">
-    <h2>ข้อความสำหรับคัดลอก</h2>
+  <div class="card sec-output">
+    <h2><span class="step">5</span>ข้อความสำหรับคัดลอก</h2>
     <textarea id="output" readonly></textarea>
     <div class="toolbar">
       <button class="btn btn-accent" id="copyBtn" type="button">📋 คัดลอกข้อความ</button>
@@ -146,6 +171,52 @@
 </div>
 
 <div class="flash" id="flash"></div>
+
+<template id="sourceTpl">
+  <div class="source-block">
+    <div class="source-head">
+      <span class="source-index"></span>
+      <button class="btn btn-sm btn-danger remove-source" type="button">ลบแหล่งนี้</button>
+    </div>
+    <div class="source-body">
+      <div class="row">
+        <div class="field">
+          <label>สถานที่รับยา (เช่น รพสต.ต้นเปา)</label>
+          <input type="text" class="src-facility" list="hospitalOptions" placeholder="รพสต.ต้นเปา">
+        </div>
+      </div>
+      <div class="visit-list"></div>
+      <button class="btn btn-sm add-visit" type="button">+ เพิ่มครั้งที่รับยา (แผนก/วันที่อื่น ที่เดียวกัน)</button>
+    </div>
+  </div>
+</template>
+
+<template id="visitTpl">
+  <div class="visit-block">
+    <div class="visit-head">
+      <span class="visit-index"><span class="visit-label"></span><span class="badge med-count">0 รายการ</span></span>
+      <button class="btn btn-sm btn-danger remove-visit" type="button">ลบครั้งนี้</button>
+    </div>
+    <div class="visit-body">
+      <div class="row">
+        <div class="field">
+          <label>แผนก / คลินิก (ไม่บังคับ)</label>
+          <input type="text" class="vis-dept" list="deptOptions" placeholder="เช่น อายุรกรรม">
+        </div>
+        <div class="field" style="max-width:170px;">
+          <label>วันที่รับยา</label>
+          <input type="date" class="vis-received">
+        </div>
+        <div class="field" style="max-width:170px;">
+          <label><input type="checkbox" class="vis-include-fu" checked style="width:auto; margin-right:4px;">วันนัด f/u</label>
+          <input type="date" class="vis-fu">
+        </div>
+      </div>
+      <div class="med-rows"></div>
+      <button class="btn btn-accent btn-sm add-med" type="button">+ เพิ่มรายการยา</button>
+    </div>
+  </div>
+</template>
 
 <template id="medRowTpl">
   <div class="med-row">
@@ -208,6 +279,22 @@
   <option value="รพ.โนนสะอาด">
   <option value="รพ.ประสาทเชียงใหม่">
   <option value="รพ.พร้าว">
+</datalist>
+
+<datalist id="deptOptions">
+  <option value="อายุรกรรม">
+  <option value="ศัลยกรรม">
+  <option value="ออร์โธปิดิกส์">
+  <option value="สูติ-นรีเวช">
+  <option value="กุมารเวชกรรม">
+  <option value="จักษุ">
+  <option value="หู คอ จมูก">
+  <option value="จิตเวช">
+  <option value="คลินิกเบาหวาน">
+  <option value="คลินิกความดัน">
+  <option value="คลินิกโรคไต">
+  <option value="คลินิก NCD">
+  <option value="ห้องฉุกเฉิน">
 </datalist>
 
 <script>
@@ -280,11 +367,103 @@ function convertRegimen(raw){
   return s;
 }
 
+// ---------- Sources ----------
+const sourcesEl = $('#sources');
+const sourceTpl = $('#sourceTpl');
+
+const visitTpl = $('#visitTpl');
+
+function addSource(withTodayDates){
+  const node = sourceTpl.content.firstElementChild.cloneNode(true);
+  const visitList = $('.visit-list', node);
+  $('.src-facility', node).addEventListener('input', updateOutput);
+  $('.add-visit', node).addEventListener('click', () => {
+    const visit = addVisit(visitList, false);
+    $('.vis-dept', visit).focus();
+    updateOutput();
+  });
+  $('.remove-source', node).addEventListener('click', () => { node.remove(); renumberSources(); updateOutput(); });
+  sourcesEl.appendChild(node);
+  addVisit(visitList, withTodayDates);
+  renumberSources();
+  return node;
+}
+
+function addVisit(visitList, withTodayDates){
+  const node = visitTpl.content.firstElementChild.cloneNode(true);
+  const medRows = $('.med-rows', node);
+  if (withTodayDates){
+    $('.vis-received', node).value = todayISO();
+    $('.vis-fu', node).value = todayISO();
+  }
+  ['.vis-dept','.vis-received','.vis-fu'].forEach(sel => {
+    $(sel, node).addEventListener('input', updateOutput);
+  });
+  $('.vis-include-fu', node).addEventListener('change', () => {
+    $('.vis-fu', node).disabled = !$('.vis-include-fu', node).checked;
+    updateOutput();
+  });
+  $('.add-med', node).addEventListener('click', () => addMedRow(medRows));
+  $('.remove-visit', node).addEventListener('click', () => { node.remove(); renumberVisits(visitList); updateOutput(); });
+  visitList.appendChild(node);
+  addMedRow(medRows);
+  renumberVisits(visitList);
+  return node;
+}
+
+function renumberVisits(visitList){
+  const blocks = $$('.visit-block', visitList);
+  blocks.forEach((block, i) => {
+    $('.visit-label', block).textContent = `ครั้งที่ ${i+1}`;
+    $('.remove-visit', block).style.display = blocks.length > 1 ? '' : 'none';
+  });
+}
+
+function renumberSources(){
+  const blocks = $$('.source-block', sourcesEl);
+  blocks.forEach((block, i) => {
+    $('.source-index', block).textContent = `แหล่งที่ ${i+1}`;
+    $('.remove-source', block).style.display = blocks.length > 1 ? '' : 'none';
+  });
+}
+
+function sourceHasData(block){
+  return $('.src-facility', block).value.trim()
+    || $$('.vis-dept, .med-name', block).some(i => i.value.trim());
+}
+
+function applySourceMode(){
+  const multi = $('#multiSource').checked;
+  sourcesEl.classList.toggle('single', !multi);
+  $('#addSourceBtn').style.display = multi ? '' : 'none';
+  renumberSources();
+}
+
+$('#multiSource').addEventListener('change', () => {
+  if ($('#multiSource').checked){
+    if (sourcesEl.children.length < 2) addSource(false);
+  } else {
+    const extra = $$('.source-block', sourcesEl).slice(1);
+    if (extra.some(sourceHasData) && !confirm('ลบข้อมูลแหล่งรับยาที่ 2 เป็นต้นไป?')){
+      $('#multiSource').checked = true;
+      return;
+    }
+    extra.forEach(n => n.remove());
+  }
+  applySourceMode();
+  updateOutput();
+});
+
+$('#addSourceBtn').addEventListener('click', () => {
+  const node = addSource(false);
+  $('.src-facility', node).focus();
+  updateOutput();
+});
+
 // ---------- Medication rows ----------
-const medRows = $('#medRows');
 const medTpl = $('#medRowTpl');
 
-function addMedRow(data){
+function addMedRow(medRows, data){
   const node = medTpl.content.firstElementChild.cloneNode(true);
   const nameInput = $('.med-name', node);
   const strengthInput = $('.med-strength', node);
@@ -330,33 +509,33 @@ function addMedRow(data){
     if (e.key === 'Enter'){
       e.preventDefault();
       if (node === medRows.lastElementChild){
-        addMedRow();
+        addMedRow(medRows);
         $('.med-name', medRows.lastElementChild).focus();
       }
     }
   });
 
-  $('.remove-med', node).addEventListener('click', () => { node.remove(); renumberMeds(); updateOutput(); });
+  $('.remove-med', node).addEventListener('click', () => { node.remove(); renumberMeds(medRows); updateOutput(); });
   $('.move-up', node).addEventListener('click', () => {
     const prev = node.previousElementSibling;
     if (prev) medRows.insertBefore(node, prev);
-    renumberMeds(); updateOutput();
+    renumberMeds(medRows); updateOutput();
   });
   $('.move-down', node).addEventListener('click', () => {
     const next = node.nextElementSibling;
     if (next) medRows.insertBefore(next, node);
-    renumberMeds(); updateOutput();
+    renumberMeds(medRows); updateOutput();
   });
 
   medRows.appendChild(node);
-  renumberMeds();
+  renumberMeds(medRows);
 }
 
-function renumberMeds(){
+function renumberMeds(medRows){
   $$('.med-row', medRows).forEach((row, i) => {
     $('.med-index', row).textContent = `#${i+1}`;
   });
-  $('#medCount').textContent = `${$$('.med-row', medRows).length} รายการ`;
+  $('.med-count', medRows.closest('.visit-block')).textContent = `${$$('.med-row', medRows).length} รายการ`;
 }
 
 // ---------- Allergy rows ----------
@@ -382,7 +561,6 @@ function addAllergyRow(data){
   allergyRows.appendChild(node);
 }
 
-$('#addMedBtn').addEventListener('click', () => addMedRow());
 $('#addAllergyBtn').addEventListener('click', () => addAllergyRow());
 
 $('#allergyNo').addEventListener('change', toggleAllergyBlock);
@@ -390,18 +568,14 @@ $('#allergyYes').addEventListener('change', toggleAllergyBlock);
 function toggleAllergyBlock(){
   const show = $('#allergyYes').checked;
   $('#allergyBlock').style.display = show ? 'block' : 'none';
+  $('#allergyCard').classList.toggle('allergy-alert', show);
   if (show && allergyRows.children.length === 0) addAllergyRow();
   updateOutput();
 }
 
-$('#includeFU').addEventListener('change', () => {
-  $('#fuDate').disabled = !$('#includeFU').checked;
-  updateOutput();
-});
-
 const PHARMACIST_NAME = 'ภญ.ธมลวรรณ';
 
-['noteDate','facility','receivedDate','fuDate'].forEach(id => {
+['noteDate','freeNote'].forEach(id => {
   $('#' + id).addEventListener('input', updateOutput);
 });
 
@@ -424,28 +598,72 @@ function generateNote(){
     lines.push(parts.length ? `มีประวัติแพ้ ${parts.join(', ')}` : 'มีประวัติแพ้ยา');
   }
 
-  const facility = $('#facility').value.trim();
-  const receivedDate = toThaiShort($('#receivedDate').value);
-  const fuDate = $('#includeFU').checked ? toThaiShort($('#fuDate').value) : '';
-  let sourceLine = `ผู้ป่วยรับยาที่${facility}`;
-  if (receivedDate) sourceLine += ` วันที่ ${receivedDate}`;
-  if (fuDate) sourceLine += ` f/u ${fuDate}`;
-  lines.push(sourceLine);
+  const joinParts = (...parts) => parts.filter(Boolean).join(' ');
 
-  const meds = $$('.med-row', medRows)
-    .map(row => ({
-      name: $('.med-name', row).value.trim(),
-      strength: $('.med-strength', row).value.trim(),
-      regimen: $('.med-regimen', row).value.trim()
-    }))
-    .filter(m => m.name);
+  const readVisit = block => {
+    const receivedDate = toThaiShort($('.vis-received', block).value);
+    const fuDate = $('.vis-include-fu', block).checked ? toThaiShort($('.vis-fu', block).value) : '';
+    const desc = joinParts(
+      $('.vis-dept', block).value.trim(),
+      receivedDate && `วันที่ ${receivedDate}`,
+      fuDate && `f/u ${fuDate}`
+    );
+    const meds = $$('.med-row', block)
+      .map(row => ({
+        name: $('.med-name', row).value.trim(),
+        strength: $('.med-strength', row).value.trim(),
+        regimen: $('.med-regimen', row).value.trim()
+      }))
+      .filter(m => m.name);
+    return { desc, meds };
+  };
 
-  lines.push(`มีทั้งหมด ${meds.length} รายการ`);
-  meds.forEach((m, i) => {
+  const sources = $$('.source-block', sourcesEl).map(block => ({
+    facility: $('.src-facility', block).value.trim(),
+    visits: $$('.visit-block', block).map(readVisit)
+  }));
+
+  const medLine = (m, i) => {
     const strengthPart = m.strength ? ` (${m.strength})` : '';
     const regimenPart = convertRegimen(m.regimen);
-    lines.push(`${i+1}. ${m.name}${strengthPart}${regimenPart ? ' ' + regimenPart : ''}`);
+    return `${i+1}. ${m.name}${strengthPart}${regimenPart ? ' ' + regimenPart : ''}`;
+  };
+  const countText = v => `มีทั้งหมด ${v.meds.length} รายการ`;
+  const pushMeds = (meds, indent) => meds.forEach((m, i) => lines.push(indent + medLine(m, i)));
+  // numbered visit lines; prefix gives "1.1", "1.2" when nested under a numbered place
+  const pushVisits = (visits, indent, prefix) => visits.forEach((v, j) => {
+    const num = prefix ? `${prefix}.${j+1}` : `${j+1}.`;
+    lines.push(indent + joinParts(num, v.desc, countText(v)));
+    pushMeds(v.meds, indent + '   ');
   });
+
+  if ($('#multiSource').checked){
+    lines.push(`ผู้ป่วยรับยา ${sources.length} ที่`);
+    sources.forEach((s, i) => {
+      if (s.visits.length === 1){
+        const v = s.visits[0];
+        lines.push(joinParts(`${i+1}.`, s.facility, v.desc, countText(v)));
+        pushMeds(v.meds, '   ');
+      } else {
+        lines.push(joinParts(`${i+1}.`, s.facility, `รับยา ${s.visits.length} ครั้ง`));
+        pushVisits(s.visits, '   ', i+1);
+      }
+    });
+  } else {
+    const s = sources[0];
+    if (s.visits.length === 1){
+      const v = s.visits[0];
+      lines.push(joinParts(`ผู้ป่วยรับยาที่${s.facility}`, v.desc));
+      lines.push(countText(v));
+      pushMeds(v.meds, '');
+    } else {
+      lines.push(joinParts(`ผู้ป่วยรับยาที่${s.facility}`, `${s.visits.length} ครั้ง`));
+      pushVisits(s.visits, '', '');
+    }
+  }
+
+  const freeNote = $('#freeNote').value.trim();
+  if (freeNote) lines.push(freeNote);
 
   return lines.join('\n');
 }
@@ -488,13 +706,11 @@ function resetForm(){
   $('#allergyYes').checked = false;
   allergyRows.innerHTML = '';
   $('#allergyBlock').style.display = 'none';
-  $('#facility').value = '';
-  $('#receivedDate').value = todayISO();
-  $('#includeFU').checked = true;
-  $('#fuDate').value = todayISO();
-  $('#fuDate').disabled = false;
-  medRows.innerHTML = '';
-  addMedRow();
+  $('#multiSource').checked = false;
+  sourcesEl.innerHTML = '';
+  addSource(true);
+  applySourceMode();
+  $('#freeNote').value = '';
   updateOutput();
 }
 
@@ -504,11 +720,7 @@ $('#clearBtn').addEventListener('click', () => {
 });
 
 // ---------- Init ----------
-$('#noteDate').value = todayISO();
-$('#receivedDate').value = todayISO();
-$('#fuDate').value = todayISO();
-addMedRow();
-updateOutput();
+resetForm();
 </script>
 </body>
 </html>
