@@ -4,173 +4,338 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Medication Reconciliation - Data Entry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap">
 <style>
+  /* iOS 27 UI Kit tokens (Figma: Colors, Lists, Text Fields, Buttons, Toggles, Segmented Controls) */
   :root{
-    --bg:#f4f6f8; --card:#ffffff; --border:#dde3e8; --text:#1f2937;
-    --muted:#6b7280; --accent:#2563eb; --accent-dark:#1d4ed8;
-    --danger:#dc2626; --danger-bg:#fef2f2; --ok:#16a34a;
+    --bg-grouped:#f2f2f7; --bg-cell:#ffffff;
+    --label:#000000; --label-2:rgba(60,60,67,0.6); --label-3:rgba(60,60,67,0.3);
+    --separator:#e6e6e6; --fill-3:rgba(118,118,128,0.12);
+    --blue:#0088ff; --red:#ff383c; --orange:#ff8d28; --green:#34c759; --indigo:#6155f5;
+    --radius-group:26px;
+    --font:'Kanit','Leelawadee UI',sans-serif;
+    /* copy-out text */
+    --font-copy:ui-monospace,'SF Mono',Menlo,Consolas,'Cascadia Mono',monospace;
     /* section colours */
-    --c-info:#2563eb; --c-allergy:#dc2626; --c-source:#4f46e5; --c-visit:#0d9488;
-    --c-note:#d97706; --c-output:#16a34a;
+    --c-info:var(--blue); --c-allergy:var(--red); --c-source:var(--indigo);
+    --c-note:var(--orange); --c-output:var(--green);
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; padding:24px 16px 80px;
-    font-family:'Sarabun','Leelawadee UI','Segoe UI',sans-serif;
-    background:var(--bg); color:var(--text); font-size:15px;
+    margin:0; padding:32px 16px 96px;
+    font-family:var(--font); font-size:17px; line-height:22px;
+    background:var(--bg-grouped); color:var(--label); -webkit-font-smoothing:antialiased;
   }
   .wrap{max-width:920px; margin:0 auto;}
-  h1{font-size:20px; margin:0 0 4px;}
-  .sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
-  .card{
-    --sec:var(--accent);
-    background:var(--card); border:1px solid var(--border); border-top:4px solid var(--sec);
-    border-radius:10px; padding:16px 18px; margin-bottom:16px;
-  }
+  h1{font-size:34px; line-height:41px; font-weight:700; letter-spacing:0.4px; margin:0 0 4px; padding:0 16px;}
+  .sub{color:var(--label-2); font-size:15px; line-height:20px; margin-bottom:28px; padding:0 16px;}
+
+  /* section = prominent header + inset grouped card */
+  .section{--sec:var(--blue); margin-bottom:28px;}
   .sec-info{--sec:var(--c-info);}
   .sec-allergy{--sec:var(--c-allergy);}
   .sec-source{--sec:var(--c-source);}
   .sec-note{--sec:var(--c-note);}
   .sec-output{--sec:var(--c-output);}
-  .card.allergy-alert{background:var(--danger-bg); border-color:#fecaca; border-top-color:var(--c-allergy);}
-  .row-cards{display:flex; gap:16px; flex-wrap:wrap; align-items:stretch;}
-  .row-cards > .card{margin-bottom:16px;}
-  .card h2{font-size:15px; margin:0 0 12px; color:var(--sec); display:flex; align-items:center; gap:8px;}
+  .section-title{display:flex; align-items:center; gap:10px; margin:0; padding:0 16px 10px; font-size:20px; line-height:25px; font-weight:600;}
   .step{
     display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
-    width:22px; height:22px; border-radius:50%; background:var(--sec); color:#fff; font-size:12px;
+    width:30px; height:30px; border-radius:8px; background:var(--sec); color:#fff; font-size:15px; font-weight:600;
   }
-  .row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
-  .field{flex:1; min-width:160px; display:flex; flex-direction:column; gap:4px;}
-  label{font-size:12.5px; color:var(--muted); font-weight:600;}
-  input[type=text], input[type=date], textarea, select{
-    padding:8px 10px; border:1px solid var(--border); border-radius:6px;
-    font-size:14.5px; font-family:inherit; width:100%; background:#fff;
+  .row-cards{display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start;}
+  .row-cards > .section{flex:1; min-width:280px;}
+  .card{background:var(--bg-cell); border-radius:var(--radius-group); overflow:hidden;}
+  .allergy-alert .section-title{color:var(--red);}
+  .allergy-alert .card{background:#fff2f2; box-shadow:0 0 0 1.5px rgba(255,56,60,0.35);}
+
+  /* list cells with inset separators */
+  .cell{position:relative; padding:12px 16px;}
+  .cell::before{content:""; position:absolute; top:0; left:16px; right:0; height:1px; background:var(--separator);}
+  .card > .cell:first-child::before{display:none;}
+  .list-row{display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding-top:8px; padding-bottom:8px;}
+  label.list-row{cursor:pointer;}
+  .cell-title{flex:1;}
+  .row-btn{
+    display:flex; align-items:center; width:100%; min-height:52px; border:0; background:none;
+    font:400 17px/22px var(--font); color:var(--blue); text-align:left; cursor:pointer;
   }
-  input:focus, textarea:focus, select:focus{outline:2px solid #93c5fd; border-color:var(--accent);}
-  .radio-group{display:flex; gap:16px; align-items:center; padding:6px 0;}
-  .radio-group label{display:flex; align-items:center; gap:6px; font-size:14px; color:var(--text); font-weight:400;}
-  .hint{font-size:12px; color:var(--muted); margin-top:2px;}
+  .row-btn:hover{background:rgba(118,118,128,0.06);}
+  .row-btn.destructive{color:var(--red);}
+
+  /* fields */
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row + .row{margin-top:10px;}
+  .field{flex:1; min-width:160px; display:flex; flex-direction:column; gap:6px;}
+  .field > label{font-size:13px; line-height:18px; color:var(--label-2); padding-left:4px;}
+  .row-end{align-self:flex-end; margin-bottom:7px;}
+  input[type=text], input[type=date], textarea{
+    width:100%; padding:10px 12px; border:0; border-radius:12px; background:var(--fill-3);
+    font:500 17px/22px var(--font); color:var(--label); caret-color:var(--blue);
+    outline:none; transition:background .15s, box-shadow .15s;
+  }
+  ::placeholder{color:var(--label-3); opacity:1;}
+  input:focus, textarea:focus{background:#fff; box-shadow:0 0 0 2px var(--blue);}
+  input:disabled{opacity:.4;}
+  .list-row input[type=date]{width:auto; padding:6px 11px; border-radius:10px;}
+
+  /* buttons */
   .btn{
-    padding:8px 14px; border-radius:6px; border:1px solid var(--border);
-    background:#fff; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--text);
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    min-height:34px; padding:7px 14px; border:0; border-radius:1000px;
+    background:var(--fill-3); color:var(--blue); font:400 15px/20px var(--font);
+    cursor:pointer; text-align:center; transition:background .15s, transform .1s;
   }
-  .btn:hover{background:#f1f5f9;}
-  .btn-accent{background:var(--accent); border-color:var(--accent); color:#fff;}
-  .btn-accent:hover{background:var(--accent-dark);}
-  .btn-danger{color:var(--danger); border-color:#fecaca;}
-  .btn-danger:hover{background:var(--danger-bg);}
-  .btn-sm{padding:4px 9px; font-size:12.5px;}
-  .allergy-row, .med-row{
-    border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fbfcfd;
+  .btn:hover{background:rgba(118,118,128,0.2);}
+  .btn:active{transform:scale(.97);}
+  .btn-sm{min-height:28px; padding:4px 10px;}
+  .btn-icon{width:28px; padding:0; font-size:10px;}
+  .btn-danger{color:var(--red);}
+  .btn-accent{background:var(--blue); color:#fff; font-weight:600;}
+  .btn-accent:hover{background:#0077e0;}
+  .btn-lg{min-height:50px; padding:14px 20px; font-size:17px; line-height:22px; width:100%;}
+  button:focus-visible, .toggle:focus-visible, .check:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+
+  /* toggle switch */
+  .toggle{
+    appearance:none; -webkit-appearance:none; position:relative; flex:0 0 auto;
+    width:64px; height:28px; margin:0; border-radius:100px; background:rgba(120,120,128,0.16);
+    cursor:pointer; transition:background .25s;
   }
-  .med-row .row{margin-bottom:6px;}
-  .med-row-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
-  .med-index{font-weight:700; color:var(--accent-dark); font-size:13.5px;}
-  .med-actions{display:flex; gap:6px;}
-  .preview{font-size:12.5px; color:var(--ok); font-family:Consolas,monospace; min-height:16px;}
-  .code-hint{font-size:11.5px; color:var(--muted); line-height:1.5;}
-  #output{
-    width:100%; min-height:220px; font-family:Consolas,'Cascadia Mono',monospace;
-    font-size:14px; white-space:pre-wrap; line-height:1.6;
+  .toggle::before{
+    content:""; position:absolute; top:2px; left:2px; width:38px; height:24px; border-radius:100px;
+    background:#fff; box-shadow:0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.06);
+    transition:transform .25s cubic-bezier(.3,.7,.4,1.2);
   }
-  .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
-  .badge{
-    display:inline-block; background:#eef2ff; color:var(--accent-dark);
-    border-radius:20px; padding:2px 10px; font-size:12px; font-weight:600;
+  .toggle:checked{background:var(--green);}
+  .toggle:checked::before{transform:translateX(22px);}
+
+  /* circular checkmark (List edit button, selected state) */
+  .check{
+    appearance:none; -webkit-appearance:none; position:relative; flex:0 0 auto;
+    width:20px; height:20px; margin:0; border-radius:50%; border:1.5px solid var(--label-3); cursor:pointer;
   }
-  .footer-note{font-size:12px; color:var(--muted); margin-top:6px;}
-  .card-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
-  .card-head h2{margin:0;}
-  .check-inline{display:flex; align-items:center; gap:6px; font-size:14px; color:var(--text); font-weight:600; cursor:pointer;}
+  .check:checked{background:var(--blue); border-color:var(--blue);}
+  .check:checked::after{
+    content:""; position:absolute; left:5.5px; top:2px; width:5px; height:10px;
+    border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+  }
+
+  /* segmented control */
+  .segmented{display:flex; gap:4px; padding:2px; border-radius:100px; background:var(--fill-3);}
+  .segmented input{position:absolute; opacity:0; pointer-events:none;}
+  .segmented label{
+    flex:1; display:flex; align-items:center; justify-content:center; min-height:32px; padding:3px 10px;
+    border-radius:1000px; font-size:15px; line-height:20px; font-weight:500; color:var(--label);
+    text-align:center; cursor:pointer; transition:background .2s, box-shadow .2s;
+  }
+  .segmented input:checked + label{background:#fff; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);}
+  .segmented input:focus-visible + label{outline:2px solid var(--blue); outline-offset:1px;}
+
   /* place (hospital) > visit > medication */
-  .source-block{border:1px solid #c7d2fe; border-radius:10px; margin-bottom:14px; background:#f5f7ff; overflow:hidden;}
-  .source-head{display:flex; justify-content:space-between; align-items:center; padding:8px 14px; background:#e0e7ff;}
-  .source-index{font-weight:700; color:#3730a3; font-size:14px;}
-  .source-body{padding:12px 14px;}
+  code{font:13px/1 var(--font); background:var(--fill-3); color:var(--label); padding:2px 5px; border-radius:6px;}
+  #sources{margin-top:16px; display:flex; flex-direction:column; gap:16px;}
+  .source-block{border-radius:32px; background:rgba(97,85,245,0.07); padding:10px 10px 14px;}
+  .source-head{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 6px 10px 12px;}
+  .source-index{font-size:17px; font-weight:600; color:var(--indigo);}
+  .source-body{display:flex; flex-direction:column; align-items:flex-start; gap:12px;}
+  .source-body > .card, .visit-list{align-self:stretch;}
+  .visit-list{display:flex; flex-direction:column; gap:12px;}
+  #sources.single .source-block{background:none; padding:0; border-radius:0;}
   #sources.single .source-head{display:none;}
-  #sources.single .source-block{border:none; background:none; margin-bottom:0;}
-  #sources.single .source-body{padding:0;}
-  .visit-block{border:1px solid #99f6e4; border-radius:8px; margin-bottom:10px; background:#fff; overflow:hidden;}
-  .visit-head{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 12px; background:#ccfbf1;}
-  .visit-index{font-weight:700; color:#0f766e; font-size:13.5px; display:flex; align-items:center; gap:8px;}
-  .visit-head .badge{background:#fff; color:#0f766e;}
-  .visit-body{padding:10px 12px;}
-  .add-visit{color:#0f766e; border-color:#99f6e4; margin-bottom:4px;}
-  .add-visit:hover{background:#f0fdfa;}
-  .add-source{color:#3730a3; border-color:#c7d2fe;}
-  .add-source:hover{background:#eef2ff;}
-  #freeNote{min-height:80px; resize:vertical;}
-  .flash{position:fixed; top:16px; right:16px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; font-size:13.5px; opacity:0; transform:translateY(-6px); transition:.2s; pointer-events:none;}
-  .flash.show{opacity:1; transform:translateY(0);}
+  .add-source{margin-top:12px;}
+  .visit-head{display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:52px; padding-top:8px; padding-bottom:8px;}
+  .visit-index{display:flex; align-items:center; gap:8px; font-weight:600;}
+  .badge{
+    display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:100px;
+    background:var(--fill-3); color:var(--label-2); font-size:13px; font-weight:500;
+  }
+  .fu-label{display:flex; align-items:center; gap:6px; cursor:pointer;}
+  .med-row-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .med-index{font-size:13px; font-weight:600; color:var(--label-2);}
+  .med-actions{display:flex; gap:6px;}
+  .preview{margin-top:8px; padding-left:4px; font:13px/18px var(--font); color:var(--label-2);}
+  .preview:empty{display:none;}
+
+  #freeNote{min-height:96px; resize:vertical;}
+  #output{min-height:220px; font:15px/1.6 var(--font-copy); white-space:pre-wrap; resize:vertical;}
+  .toolbar{margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+
+  .flash{
+    position:fixed; top:20px; left:50%; transform:translate(-50%,-8px);
+    background:rgba(28,28,30,0.82); -webkit-backdrop-filter:blur(20px) saturate(180%); backdrop-filter:blur(20px) saturate(180%);
+    color:#fff; padding:12px 20px; border-radius:100px; font-size:15px; font-weight:600;
+    box-shadow:0 8px 30px rgba(0,0,0,0.18); opacity:0; transition:.25s; pointer-events:none;
+  }
+  .flash.show{opacity:1; transform:translate(-50%,0);}
+
+  /* header + help sheet */
+  .page-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+  .page-head > .btn{flex:0 0 auto; margin:8px 16px 0 0;}
+  .sheet{
+    width:min(560px, calc(100% - 32px)); max-height:min(80vh, 720px); overflow:auto;
+    padding:0; border:0; border-radius:var(--radius-group);
+    background:var(--bg-grouped); color:var(--label); font:inherit;
+    box-shadow:0 20px 60px rgba(0,0,0,0.25);
+  }
+  .sheet::backdrop{background:rgba(0,0,0,0.25);}
+  .sheet-head{position:sticky; top:0; z-index:1; display:flex; justify-content:space-between; align-items:center; padding:16px 16px 8px 32px; background:var(--bg-grouped);}
+  .sheet-head h2{margin:0; font-size:20px; line-height:25px; font-weight:600;}
+  .sheet-body{padding:8px 16px 20px;}
+  .group-label{padding:20px 16px 6px; font-size:13px; line-height:18px; color:var(--label-2);}
+  .group-footer{padding:6px 16px 0; font-size:13px; line-height:18px; color:var(--label-2);}
+  .help-steps{margin:0; padding-left:36px; font-size:15px; line-height:24px;}
+  .help-row{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; font-size:15px;}
+  .help-desc{color:var(--label-2); font-size:13px;}
+
+  /* sticker print (80 x 60 mm); kept off-screen so it can be measured */
+  #printArea{position:fixed; left:-10000px; top:0; visibility:hidden;}
+  .sticker{
+    width:80mm; height:60mm; display:flex; flex-direction:column; overflow:hidden;
+    background:#fff; color:#000; font-family:var(--font);
+    break-after:page; page-break-after:always;
+  }
+  .sticker:last-child{break-after:auto; page-break-after:auto;}
+  .sticker{position:relative;}
+  .sticker-page{position:absolute; right:3mm; bottom:1mm; font-size:7pt;}
+  .sticker-body{flex:1 1 auto; min-height:0; overflow:hidden; padding:3mm 3mm 4mm; font-size:8pt; line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere;}
+
+  @media (max-width:600px){
+    body{padding:20px 12px 80px;}
+    h1{font-size:28px; line-height:34px;}
+  }
+
+  @media print{
+    @page{size:80mm 60mm; margin:0;}
+    html, body{margin:0; padding:0; background:#fff;}
+    body > *:not(#printArea){display:none !important;}
+    #printArea{position:static; visibility:visible;}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Medication Reconciliation — Data Entry</h1>
-  <div class="sub">กรอกข้อมูลแล้วคัดลอกข้อความด้านล่างไปวางในเวชระเบียน</div>
+  <div class="page-head">
+    <div>
+      <h1>Medication Reconciliation — Data Entry</h1>
+      <div class="sub">กรอกข้อมูลแล้วคัดลอกข้อความด้านล่างไปวางในเวชระเบียน</div>
+    </div>
+    <button class="btn btn-sm" id="helpBtn" type="button">วิธีใช้</button>
+  </div>
 
   <div class="row-cards">
     <!-- Header -->
-    <div class="card sec-info" style="flex:1; min-width:220px;">
-      <h2><span class="step">1</span>วันที่บันทึก</h2>
-      <div class="row">
-        <div class="field" style="max-width:200px;">
+    <section class="section sec-info">
+      <h2 class="section-title"><span class="step">1</span>วันที่บันทึก</h2>
+      <div class="card">
+        <label class="cell list-row" for="noteDate">
+          <span class="cell-title">วันที่</span>
           <input type="date" id="noteDate">
-        </div>
-        <div class="field" style="flex:0 0 auto; align-self:flex-end;">
-          <button class="btn btn-danger" id="clearBtn" type="button">ล้างฟอร์ม</button>
-        </div>
+        </label>
+        <button class="cell row-btn destructive" id="clearBtn" type="button">ล้างฟอร์ม</button>
       </div>
-    </div>
+    </section>
 
     <!-- Allergy -->
-    <div class="card sec-allergy" id="allergyCard" style="flex:1; min-width:280px;">
-      <h2><span class="step">2</span>ประวัติแพ้ยา</h2>
-      <div class="radio-group">
-        <label><input type="radio" name="allergyStatus" value="no" id="allergyNo" checked> ไม่มีประวัติแพ้ยา</label>
-        <label><input type="radio" name="allergyStatus" value="yes" id="allergyYes"> มีประวัติแพ้ยา</label>
+    <section class="section sec-allergy" id="allergyCard">
+      <h2 class="section-title"><span class="step">2</span>ประวัติแพ้ยา</h2>
+      <div class="card">
+        <div class="cell">
+          <div class="segmented">
+            <input type="radio" name="allergyStatus" value="no" id="allergyNo" checked><label for="allergyNo">ไม่มีประวัติแพ้ยา</label>
+            <input type="radio" name="allergyStatus" value="yes" id="allergyYes"><label for="allergyYes">มีประวัติแพ้ยา</label>
+          </div>
+        </div>
+        <div id="allergyBlock" style="display:none;">
+          <div id="allergyRows"></div>
+          <button class="cell row-btn" id="addAllergyBtn" type="button">+ เพิ่มรายการแพ้ยา</button>
+        </div>
       </div>
-      <div id="allergyBlock" style="display:none;">
-        <div id="allergyRows"></div>
-        <button class="btn btn-sm" id="addAllergyBtn" type="button">+ เพิ่มรายการแพ้ยา</button>
-      </div>
-    </div>
+    </section>
   </div>
 
   <!-- Sources & medications -->
-  <div class="card sec-source">
-    <div class="card-head">
-      <h2><span class="step">3</span>แหล่งที่มาของยาและรายการยา</h2>
-      <label class="check-inline"><input type="checkbox" id="multiSource"> ผู้ป่วยรับยามากกว่า 1 ที่</label>
+  <section class="section sec-source">
+    <h2 class="section-title"><span class="step">3</span>แหล่งที่มาของยาและรายการยา</h2>
+    <div class="card">
+      <label class="cell list-row" for="multiSource">
+        <span class="cell-title">ผู้ป่วยรับยามากกว่า 1 ที่</span>
+        <input type="checkbox" id="multiSource" class="toggle">
+      </label>
     </div>
-    <div class="code-hint">
-      รหัสระบุวิธีใช้ (พิมพ์แล้วระบบแปลงอัตโนมัติ): <b>ขนาดยา*จำนวนครั้งต่อวัน + ac/pc</b> เช่น <code>1*2pc</code> → <code>1x2 pc</code>,
-      <code>1*4ac</code> → <code>1x4 ac</code> &nbsp;|&nbsp; <b>ก่อนนอน:</b> <code>1*hs</code> → <code>1x1 hs</code>
-      &nbsp;|&nbsp; <b>อินซูลิน (2-4 มื้อ):</b> <code>10-2-1-8</code> → <code>10-2-1-8 unit sc ac</code>
-      &nbsp;|&nbsp; พิมพ์รูปแบบอื่นได้อิสระ ระบบจะไม่แปลงและใช้ข้อความตามที่พิมพ์
-    </div>
-    <div id="sources" class="single" style="margin-top:12px;"></div>
-    <button class="btn btn-sm add-source" id="addSourceBtn" type="button" style="display:none;">+ เพิ่มแหล่งรับยา (โรงพยาบาลอื่น)</button>
-  </div>
+    <div id="sources" class="single"></div>
+    <button class="btn add-source" id="addSourceBtn" type="button" style="display:none;">+ เพิ่มแหล่งรับยา (โรงพยาบาลอื่น)</button>
+  </section>
 
   <!-- Free-text note -->
-  <div class="card sec-note">
-    <h2><span class="step">4</span>หมายเหตุ (พิมพ์อิสระ)</h2>
-    <textarea id="freeNote" placeholder="พิมพ์ข้อความเพิ่มเติม ข้อความนี้จะต่อท้ายในข้อความสำหรับคัดลอก"></textarea>
-  </div>
+  <section class="section sec-note">
+    <h2 class="section-title"><span class="step">4</span>หมายเหตุ (พิมพ์อิสระ)</h2>
+    <div class="card">
+      <div class="cell">
+        <textarea id="freeNote" placeholder="พิมพ์ข้อความเพิ่มเติม ข้อความนี้จะต่อท้ายในข้อความสำหรับคัดลอก"></textarea>
+      </div>
+    </div>
+  </section>
 
   <!-- Output -->
-  <div class="card sec-output">
-    <h2><span class="step">5</span>ข้อความสำหรับคัดลอก</h2>
-    <textarea id="output" readonly></textarea>
-    <div class="toolbar">
-      <button class="btn btn-accent" id="copyBtn" type="button">📋 คัดลอกข้อความ</button>
+  <section class="section sec-output">
+    <h2 class="section-title"><span class="step">5</span>ข้อความสำหรับคัดลอก</h2>
+    <div class="card">
+      <div class="cell">
+        <textarea id="output" readonly></textarea>
+        <div class="toolbar">
+          <button class="btn btn-accent btn-lg" id="copyBtn" type="button">คัดลอกข้อความ</button>
+          <button class="btn btn-lg" id="printBtn" type="button">พิมพ์สติกเกอร์ (80×60 มม.)</button>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 </div>
 
 <div class="flash" id="flash"></div>
+
+<div id="printArea" aria-hidden="true"></div>
+
+<template id="stickerTpl">
+  <div class="sticker">
+    <div class="sticker-body"></div>
+    <span class="sticker-page"></span>
+  </div>
+</template>
+
+<dialog class="sheet" id="helpDialog">
+  <div class="sheet-head">
+    <h2>วิธีใช้</h2>
+    <button class="btn btn-sm" id="helpClose" type="button">เสร็จสิ้น</button>
+  </div>
+  <div class="sheet-body">
+    <div class="card">
+      <ol class="cell help-steps">
+        <li>กรอกวันที่บันทึก ประวัติแพ้ยา และแหล่งที่มาของยา</li>
+        <li>เพิ่มรายการยา เลือกชื่อยาจากรายการหรือพิมพ์เอง</li>
+        <li>พิมพ์วิธีใช้เป็นรหัสย่อ ระบบจะแปลงให้อัตโนมัติ</li>
+        <li>กด <b>คัดลอกข้อความ</b> แล้วนำไปวางในเวชระเบียน</li>
+      </ol>
+    </div>
+
+    <div class="group-label">รหัสวิธีใช้</div>
+    <div class="card">
+      <div class="cell help-row"><span><code>1*2pc</code> → <code>1x2 pc</code></span><span class="help-desc">ขนาดยา*จำนวนครั้งต่อวัน + pc</span></div>
+      <div class="cell help-row"><span><code>1*4ac</code> → <code>1x4 ac</code></span><span class="help-desc">ขนาดยา*จำนวนครั้งต่อวัน + ac</span></div>
+      <div class="cell help-row"><span><code>1*hs</code> → <code>1x1 hs</code></span><span class="help-desc">ก่อนนอน</span></div>
+      <div class="cell help-row"><span><code>10-2-1-8</code> → <code>10-2-1-8 unit sc ac</code></span><span class="help-desc">อินซูลิน 2-4 มื้อ</span></div>
+    </div>
+    <div class="group-footer">พิมพ์รูปแบบอื่นได้อิสระ ระบบจะไม่แปลงและใช้ข้อความตามที่พิมพ์</div>
+
+    <div class="group-label">ปุ่มลัด</div>
+    <div class="card">
+      <div class="cell help-row"><span>Enter ในช่องชื่อยา</span><span class="help-desc">เลือกยาตัวแรกที่ตรงกัน แล้วไปช่องวิธีใช้</span></div>
+      <div class="cell help-row"><span>Tab ในช่องชื่อยา</span><span class="help-desc">ข้ามช่องความแรงไปช่องวิธีใช้ (ถ้ามีความแรงแล้ว)</span></div>
+      <div class="cell help-row"><span>Enter ในช่องวิธีใช้ (แถวสุดท้าย)</span><span class="help-desc">เพิ่มรายการยาแถวใหม่</span></div>
+    </div>
+  </div>
+</dialog>
 
 <template id="sourceTpl">
   <div class="source-block">
@@ -179,52 +344,54 @@
       <button class="btn btn-sm btn-danger remove-source" type="button">ลบแหล่งนี้</button>
     </div>
     <div class="source-body">
-      <div class="row">
-        <div class="field">
-          <label>สถานที่รับยา (เช่น รพสต.ต้นเปา)</label>
-          <input type="text" class="src-facility" list="hospitalOptions" placeholder="รพสต.ต้นเปา">
+      <div class="card">
+        <div class="cell">
+          <div class="field">
+            <label>สถานที่รับยา (เช่น รพสต.ต้นเปา)</label>
+            <input type="text" class="src-facility" list="hospitalOptions" placeholder="รพสต.ต้นเปา">
+          </div>
         </div>
       </div>
       <div class="visit-list"></div>
-      <button class="btn btn-sm add-visit" type="button">+ เพิ่มครั้งที่รับยา (แผนก/วันที่อื่น ที่เดียวกัน)</button>
+      <button class="btn add-visit" type="button">+ เพิ่มครั้งที่รับยา (แผนก/วันที่อื่น ที่เดียวกัน)</button>
     </div>
   </div>
 </template>
 
 <template id="visitTpl">
-  <div class="visit-block">
-    <div class="visit-head">
+  <div class="visit-block card">
+    <div class="cell visit-head">
       <span class="visit-index"><span class="visit-label"></span><span class="badge med-count">0 รายการ</span></span>
       <button class="btn btn-sm btn-danger remove-visit" type="button">ลบครั้งนี้</button>
     </div>
-    <div class="visit-body">
+    <div class="cell">
       <div class="row">
         <div class="field">
           <label>แผนก / คลินิก (ไม่บังคับ)</label>
           <input type="text" class="vis-dept" list="deptOptions" placeholder="เช่น อายุรกรรม">
         </div>
-        <div class="field" style="max-width:170px;">
+        <div class="field" style="max-width:190px;">
           <label>วันที่รับยา</label>
           <input type="date" class="vis-received">
         </div>
-        <div class="field" style="max-width:170px;">
-          <label><input type="checkbox" class="vis-include-fu" checked style="width:auto; margin-right:4px;">วันนัด f/u</label>
+        <div class="field" style="max-width:190px;">
+          <label class="fu-label"><input type="checkbox" class="vis-include-fu check" checked>วันนัด f/u</label>
           <input type="date" class="vis-fu">
         </div>
       </div>
-      <div class="med-rows"></div>
-      <button class="btn btn-accent btn-sm add-med" type="button">+ เพิ่มรายการยา</button>
     </div>
+    <div class="med-rows"></div>
+    <button class="cell row-btn add-med" type="button">+ เพิ่มรายการยา</button>
   </div>
 </template>
 
 <template id="medRowTpl">
-  <div class="med-row">
+  <div class="med-row cell">
     <div class="med-row-head">
       <span class="med-index"></span>
       <div class="med-actions">
-        <button class="btn btn-sm move-up" type="button" title="เลื่อนขึ้น">▲</button>
-        <button class="btn btn-sm move-down" type="button" title="เลื่อนลง">▼</button>
+        <button class="btn btn-sm btn-icon move-up" type="button" title="เลื่อนขึ้น">▲</button>
+        <button class="btn btn-sm btn-icon move-down" type="button" title="เลื่อนลง">▼</button>
         <button class="btn btn-sm btn-danger remove-med" type="button">ลบ</button>
       </div>
     </div>
@@ -247,8 +414,8 @@
 </template>
 
 <template id="allergyRowTpl">
-  <div class="allergy-row">
-    <div class="row" style="margin-bottom:0;">
+  <div class="allergy-row cell">
+    <div class="row">
       <div class="field">
         <label>ชื่อยาที่แพ้</label>
         <input type="text" class="al-drug" list="drugListOptions" placeholder="เช่น Penicillin">
@@ -257,9 +424,7 @@
         <label>อาการแพ้</label>
         <input type="text" class="al-reaction" placeholder="เช่น อาการผื่นคันทั่วร่างกาย">
       </div>
-      <div class="field" style="flex:0 0 auto; align-self:flex-end;">
-        <button class="btn btn-sm btn-danger remove-allergy" type="button">ลบ</button>
-      </div>
+      <button class="btn btn-sm btn-danger remove-allergy row-end" type="button">ลบ</button>
     </div>
   </div>
 </template>
@@ -497,7 +662,11 @@ function addMedRow(medRows, data){
           updateOutput();
         }
       }
-      strengthInput.focus();
+      (strengthInput.value.trim() ? regimenInput : strengthInput).focus();
+    } else if (e.key === 'Tab' && !e.shiftKey && strengthInput.value.trim()){
+      // strength already filled from the drug list: skip straight to regimen
+      e.preventDefault();
+      regimenInput.focus();
     }
   });
   strengthInput.addEventListener('input', updateOutput);
@@ -698,6 +867,55 @@ $('#copyBtn').addEventListener('click', async () => {
     ta.setAttribute('readonly', 'true');
   }
 });
+
+// ---------- Print sticker (80 x 60 mm) ----------
+const printArea = $('#printArea');
+const stickerTpl = $('#stickerTpl');
+
+// fills stickers line by line; a line that does not fit starts the next sticker
+function buildStickers(){
+  const text = $('#output').value;
+  printArea.innerHTML = '';
+  let body;
+  const newSticker = () => {
+    const node = stickerTpl.content.firstElementChild.cloneNode(true);
+    printArea.appendChild(node);
+    body = $('.sticker-body', node);
+  };
+  newSticker();
+  text.split('\n').forEach(line => {
+    const div = document.createElement('div');
+    div.textContent = line || ' ';
+    body.appendChild(div);
+    if (body.scrollHeight > body.clientHeight && body.children.length > 1){
+      newSticker();
+      body.appendChild(div);
+    }
+  });
+  const stickers = $$('.sticker', printArea);
+  if (stickers.length > 1){
+    stickers.forEach((s, i) => { $('.sticker-page', s).textContent = `${i+1}/${stickers.length}`; });
+  }
+  printArea.dataset.text = text;
+}
+
+// Ctrl+P also prints the sticker
+window.addEventListener('beforeprint', () => {
+  if (printArea.dataset.text !== $('#output').value) buildStickers();
+});
+
+$('#printBtn').addEventListener('click', async () => {
+  await document.fonts.ready;
+  buildStickers();
+  window.print();
+});
+
+// ---------- Help ----------
+const helpDialog = $('#helpDialog');
+$('#helpBtn').addEventListener('click', () => helpDialog.showModal());
+$('#helpClose').addEventListener('click', () => helpDialog.close());
+// click on the backdrop closes the sheet
+helpDialog.addEventListener('click', (e) => { if (e.target === helpDialog) helpDialog.close(); });
 
 // ---------- Clear form ----------
 function resetForm(){
