@@ -172,7 +172,18 @@
 
   /* header + help sheet */
   .page-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
-  .page-head > .btn{flex:0 0 auto; margin:8px 16px 0 0;}
+  .head-actions{display:flex; gap:8px; flex:0 0 auto; margin:8px 16px 0 0;}
+
+  /* saved records (IndexedDB) */
+  .save-status{font-size:13px; line-height:18px; color:var(--label-2); text-align:center; min-height:18px;}
+  .saved-search{margin-bottom:12px;}
+  .saved-item{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .saved-main{flex:1; min-width:200px;}
+  .saved-title{display:flex; align-items:center; gap:8px; font-size:15px; font-weight:600;}
+  .saved-meta{font-size:13px; line-height:18px; color:var(--label-2);}
+  .saved-meds{font-size:13px; line-height:18px; color:var(--label-2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .saved-actions{display:flex; gap:6px; flex:0 0 auto;}
+  .saved-empty{color:var(--label-2); font-size:15px; text-align:center; padding:20px 16px;}
   .sheet{
     width:min(560px, calc(100% - 32px)); max-height:min(80vh, 720px); overflow:auto;
     padding:0; border:0; border-radius:var(--radius-group);
@@ -221,7 +232,10 @@
       <h1>Medication Reconciliation — Data Entry</h1>
       <div class="sub">กรอกข้อมูลแล้วคัดลอกข้อความด้านล่างไปวางในเวชระเบียน</div>
     </div>
-    <button class="btn btn-sm" id="helpBtn" type="button">วิธีใช้</button>
+    <div class="head-actions">
+      <button class="btn btn-sm" id="savedBtn" type="button">รายการที่บันทึก</button>
+      <button class="btn btn-sm" id="helpBtn" type="button">วิธีใช้</button>
+    </div>
   </div>
 
   <div class="row-cards">
@@ -233,7 +247,7 @@
           <span class="cell-title">วันที่</span>
           <input type="date" id="noteDate">
         </label>
-        <button class="cell row-btn destructive" id="clearBtn" type="button">ล้างฟอร์ม</button>
+        <button class="cell row-btn" id="clearBtn" type="button">เริ่มฟอร์มใหม่</button>
       </div>
     </section>
 
@@ -287,6 +301,7 @@
         <div class="toolbar">
           <button class="btn btn-accent btn-lg" id="copyBtn" type="button">คัดลอกข้อความ</button>
           <button class="btn btn-lg" id="printBtn" type="button">พิมพ์สติกเกอร์ (80×60 มม.)</button>
+          <div class="save-status" id="saveStatus"></div>
         </div>
       </div>
     </div>
@@ -316,6 +331,7 @@
         <li>เพิ่มรายการยา เลือกชื่อยาจากรายการหรือพิมพ์เอง</li>
         <li>พิมพ์วิธีใช้เป็นรหัสย่อ ระบบจะแปลงให้อัตโนมัติ</li>
         <li>กด <b>คัดลอกข้อความ</b> แล้วนำไปวางในเวชระเบียน</li>
+        <li>ฟอร์มบันทึกอัตโนมัติในเบราว์เซอร์นี้ เปิดแก้ไขหรือพิมพ์ซ้ำได้ที่ <b>รายการที่บันทึก</b></li>
       </ol>
     </div>
 
@@ -334,6 +350,18 @@
       <div class="cell help-row"><span>Tab ในช่องชื่อยา</span><span class="help-desc">ข้ามช่องความแรงไปช่องวิธีใช้ (ถ้ามีความแรงแล้ว)</span></div>
       <div class="cell help-row"><span>Enter ในช่องวิธีใช้ (แถวสุดท้าย)</span><span class="help-desc">เพิ่มรายการยาแถวใหม่</span></div>
     </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="savedDialog">
+  <div class="sheet-head">
+    <h2>รายการที่บันทึก</h2>
+    <button class="btn btn-sm" id="savedClose" type="button">เสร็จสิ้น</button>
+  </div>
+  <div class="sheet-body">
+    <input type="text" class="saved-search" id="savedSearch" placeholder="ค้นหาชื่อยา สถานที่ หรือข้อความ">
+    <div class="card" id="savedList"></div>
+    <div class="group-footer">บันทึกไว้ในเบราว์เซอร์นี้บนเครื่องนี้เท่านั้น</div>
   </div>
 </dialog>
 
@@ -538,9 +566,10 @@ const sourceTpl = $('#sourceTpl');
 
 const visitTpl = $('#visitTpl');
 
-function addSource(withTodayDates){
+function addSource(withTodayDates, data){
   const node = sourceTpl.content.firstElementChild.cloneNode(true);
   const visitList = $('.visit-list', node);
+  if (data) $('.src-facility', node).value = data.facility || '';
   $('.src-facility', node).addEventListener('input', updateOutput);
   $('.add-visit', node).addEventListener('click', () => {
     const visit = addVisit(visitList, false);
@@ -549,15 +578,25 @@ function addSource(withTodayDates){
   });
   $('.remove-source', node).addEventListener('click', () => { node.remove(); renumberSources(); updateOutput(); });
   sourcesEl.appendChild(node);
-  addVisit(visitList, withTodayDates);
+  if (data && data.visits && data.visits.length){
+    data.visits.forEach(v => addVisit(visitList, false, v));
+  } else {
+    addVisit(visitList, withTodayDates);
+  }
   renumberSources();
   return node;
 }
 
-function addVisit(visitList, withTodayDates){
+function addVisit(visitList, withTodayDates, data){
   const node = visitTpl.content.firstElementChild.cloneNode(true);
   const medRows = $('.med-rows', node);
-  if (withTodayDates){
+  if (data){
+    $('.vis-dept', node).value = data.dept || '';
+    $('.vis-received', node).value = data.received || '';
+    $('.vis-fu', node).value = data.fu || '';
+    $('.vis-include-fu', node).checked = data.includeFu !== false;
+    $('.vis-fu', node).disabled = data.includeFu === false;
+  } else if (withTodayDates){
     $('.vis-received', node).value = todayISO();
     $('.vis-fu', node).value = todayISO();
   }
@@ -571,7 +610,11 @@ function addVisit(visitList, withTodayDates){
   $('.add-med', node).addEventListener('click', () => addMedRow(medRows));
   $('.remove-visit', node).addEventListener('click', () => { node.remove(); renumberVisits(visitList); updateOutput(); });
   visitList.appendChild(node);
-  addMedRow(medRows);
+  if (data && data.meds && data.meds.length){
+    data.meds.forEach(m => addMedRow(medRows, m));
+  } else {
+    addMedRow(medRows);
+  }
   renumberVisits(visitList);
   return node;
 }
@@ -639,6 +682,7 @@ function addMedRow(medRows, data){
     nameInput.value = data.name || '';
     strengthInput.value = data.strength || '';
     regimenInput.value = data.regimen || '';
+    if (regimenInput.value.trim()) preview.textContent = '→ ' + convertRegimen(regimenInput.value);
   }
 
   nameInput.addEventListener('input', () => {
@@ -839,6 +883,7 @@ function generateNote(){
 
 function updateOutput(){
   $('#output').value = generateNote();
+  scheduleSave();
 }
 
 // ---------- Copy ----------
@@ -904,11 +949,13 @@ window.addEventListener('beforeprint', () => {
   if (printArea.dataset.text !== $('#output').value) buildStickers();
 });
 
-$('#printBtn').addEventListener('click', async () => {
+async function printSticker(){
   await document.fonts.ready;
   buildStickers();
   window.print();
-});
+}
+
+$('#printBtn').addEventListener('click', printSticker);
 
 // ---------- Help ----------
 const helpDialog = $('#helpDialog');
@@ -932,10 +979,268 @@ function resetForm(){
   updateOutput();
 }
 
+// starts a blank form; the current one is already auto-saved
 $('#clearBtn').addEventListener('click', () => {
-  if (!confirm('ล้างข้อมูลทั้งหมดในฟอร์ม?')) return;
-  resetForm();
+  const hadContent = hasContent(readState());
+  startNewForm();
+  if (hadContent) showFlash('เริ่มฟอร์มใหม่ ฟอร์มเดิมอยู่ใน "รายการที่บันทึก"');
 });
+
+// ---------- Form state (for saving) ----------
+function readState(){
+  const val = (sel, ctx) => $(sel, ctx).value;
+  return {
+    noteDate: $('#noteDate').value,
+    allergyYes: $('#allergyYes').checked,
+    allergies: $$('.allergy-row', allergyRows).map(r => ({ drug: val('.al-drug', r), reaction: val('.al-reaction', r) })),
+    multiSource: $('#multiSource').checked,
+    sources: $$('.source-block', sourcesEl).map(b => ({
+      facility: val('.src-facility', b),
+      visits: $$('.visit-block', b).map(v => ({
+        dept: val('.vis-dept', v),
+        received: val('.vis-received', v),
+        includeFu: $('.vis-include-fu', v).checked,
+        fu: val('.vis-fu', v),
+        meds: $$('.med-row', v).map(m => ({
+          name: val('.med-name', m), strength: val('.med-strength', m), regimen: val('.med-regimen', m)
+        }))
+      }))
+    })),
+    freeNote: $('#freeNote').value
+  };
+}
+
+// anything typed besides the default dates
+function hasContent(s){
+  const filled = x => x && String(x).trim() !== '';
+  return filled(s.freeNote) || s.allergyYes
+    || s.allergies.some(a => filled(a.drug) || filled(a.reaction))
+    || s.sources.some(src => filled(src.facility) || src.visits.some(v =>
+         filled(v.dept) || v.meds.some(m => filled(m.name) || filled(m.strength) || filled(m.regimen))));
+}
+
+function applyState(s){
+  suppressSave = true;
+  try{
+    $('#noteDate').value = s.noteDate || '';
+    $('#allergyYes').checked = !!s.allergyYes;
+    $('#allergyNo').checked = !s.allergyYes;
+    allergyRows.innerHTML = '';
+    (s.allergies || []).forEach(a => addAllergyRow(a));
+    toggleAllergyBlock();
+    $('#multiSource').checked = !!s.multiSource;
+    sourcesEl.innerHTML = '';
+    const sources = s.sources && s.sources.length ? s.sources : [null];
+    sources.forEach(src => addSource(false, src));
+    applySourceMode();
+    $('#freeNote').value = s.freeNote || '';
+    updateOutput();
+  } finally {
+    suppressSave = false;
+  }
+}
+
+// ---------- IndexedDB storage ----------
+const DB_NAME = 'mr-form', DB_STORE = 'records';
+let dbPromise = null;
+
+function openDB(){
+  if (!dbPromise){
+    dbPromise = new Promise((resolve, reject) => {
+      if (!window.indexedDB) return reject(new Error('IndexedDB not available'));
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE, { keyPath: 'id', autoIncrement: true });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    dbPromise.catch(() => { dbPromise = null; });
+  }
+  return dbPromise;
+}
+
+// runs one request in its own transaction and resolves with its result once committed
+function dbRequest(mode, makeRequest){
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, mode);
+    const req = makeRequest(tx.objectStore(DB_STORE));
+    tx.oncomplete = () => resolve(req.result);
+    tx.onerror = tx.onabort = () => reject(tx.error || req.error);
+  }));
+}
+const dbPut = rec => dbRequest('readwrite', s => s.put(rec));
+const dbGet = id => dbRequest('readonly', s => s.get(id));
+const dbGetAll = () => dbRequest('readonly', s => s.getAll());
+const dbDelete = id => dbRequest('readwrite', s => s.delete(id));
+
+// ---------- Auto-save ----------
+// draft = the record the form is currently writing to (id is null until first save)
+let draft = { id: null, createdAt: null };
+let saveTimer = null;
+let saveQueue = Promise.resolve();
+let suppressSave = false;
+
+const fmtDateTime = ts => new Date(ts).toLocaleString('th-TH', {
+  day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit'
+});
+const setSaveStatus = msg => { $('#saveStatus').textContent = msg; };
+
+function scheduleSave(){
+  if (suppressSave) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 600);
+}
+
+// snapshots the form now; writes run one at a time so a new record is only created once
+function flushSave(){
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const state = readState();
+  if (!hasContent(state)) return saveQueue;
+  const d = draft;
+  const text = $('#output').value;
+  const now = Date.now();
+  saveQueue = saveQueue.then(async () => {
+    const rec = { state, text, createdAt: d.createdAt || now, updatedAt: now };
+    if (d.id != null) rec.id = d.id;
+    d.id = await dbPut(rec);
+    d.createdAt = rec.createdAt;
+    if (d === draft) setSaveStatus(`บันทึกอัตโนมัติแล้ว ${fmtDateTime(now)}`);
+  }).catch(err => {
+    console.error(err);
+    if (d === draft) setSaveStatus('บันทึกไม่สำเร็จ (เบราว์เซอร์นี้อาจปิดการเก็บข้อมูล)');
+  });
+  return saveQueue;
+}
+
+function startNewForm(){
+  flushSave();
+  draft = { id: null, createdAt: null };
+  resetForm();
+  setSaveStatus('');
+}
+
+async function openRecord(id){
+  flushSave();
+  await saveQueue;
+  const rec = await dbGet(id);
+  if (!rec) { showFlash('ไม่พบรายการนี้'); return false; }
+  draft = { id: rec.id, createdAt: rec.createdAt };
+  applyState(rec.state);
+  setSaveStatus(`เปิดรายการที่บันทึกเมื่อ ${fmtDateTime(rec.updatedAt)}`);
+  window.scrollTo({ top: 0 });
+  return true;
+}
+
+// save before the tab is closed or hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && saveTimer) flushSave();
+});
+window.addEventListener('pagehide', () => { if (saveTimer) flushSave(); });
+
+// ---------- Saved records sheet ----------
+const savedDialog = $('#savedDialog');
+const savedList = $('#savedList');
+const savedSearch = $('#savedSearch');
+
+function recordSummary(rec){
+  const sources = (rec.state && rec.state.sources) || [];
+  const places = sources.map(s => (s.facility || '').trim()).filter(Boolean);
+  const meds = sources.flatMap(s => s.visits.flatMap(v => v.meds))
+    .map(m => (m.name || '').trim()).filter(Boolean);
+  return { title: places.join(', ') || 'ไม่ระบุสถานที่รับยา', meds };
+}
+
+async function renderSaved(){
+  let recs;
+  try{
+    recs = await dbGetAll();
+  }catch(err){
+    console.error(err);
+    savedList.innerHTML = '<div class="saved-empty">เปิดที่เก็บข้อมูลในเบราว์เซอร์ไม่ได้</div>';
+    return;
+  }
+  const q = savedSearch.value.trim().toLowerCase();
+  recs = recs
+    .filter(r => !q || (r.text || '').toLowerCase().includes(q))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  savedList.innerHTML = '';
+  if (!recs.length){
+    const empty = document.createElement('div');
+    empty.className = 'saved-empty';
+    empty.textContent = q ? 'ไม่พบรายการที่ตรงกัน' : 'ยังไม่มีรายการที่บันทึก';
+    savedList.appendChild(empty);
+    return;
+  }
+
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  recs.forEach(rec => {
+    const { title, meds } = recordSummary(rec);
+    const item = el('div', 'cell saved-item');
+    const main = el('div', 'saved-main');
+    const titleEl = el('div', 'saved-title', title);
+    if (rec.id === draft.id) titleEl.appendChild(el('span', 'badge', 'กำลังแก้ไข'));
+    main.appendChild(titleEl);
+    main.appendChild(el('div', 'saved-meta', `${meds.length} รายการยา · บันทึก ${fmtDateTime(rec.updatedAt)}`));
+    if (meds.length) main.appendChild(el('div', 'saved-meds', meds.join(', ')));
+
+    const actions = el('div', 'saved-actions');
+    const openBtn = el('button', 'btn btn-sm btn-accent', 'เปิด');
+    const printBtn = el('button', 'btn btn-sm', 'พิมพ์');
+    const delBtn = el('button', 'btn btn-sm btn-danger', 'ลบ');
+    [openBtn, printBtn, delBtn].forEach(b => { b.type = 'button'; actions.appendChild(b); });
+
+    openBtn.addEventListener('click', async () => {
+      if (await openRecord(rec.id)) savedDialog.close();
+    });
+    printBtn.addEventListener('click', async () => {
+      if (await openRecord(rec.id)){
+        savedDialog.close();
+        printSticker();
+      }
+    });
+    delBtn.addEventListener('click', async () => {
+      if (!confirm(`ลบรายการ "${title}"?`)) return;
+      if (rec.id === draft.id){
+        // deleting the open record: drop pending edits and start fresh
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        draft = { id: null, createdAt: null };
+        resetForm();
+        setSaveStatus('');
+      }
+      await saveQueue;
+      try{
+        await dbDelete(rec.id);
+      }catch(err){
+        console.error(err);
+        showFlash('ลบไม่สำเร็จ');
+      }
+      renderSaved();
+    });
+
+    item.appendChild(main);
+    item.appendChild(actions);
+    savedList.appendChild(item);
+  });
+}
+
+$('#savedBtn').addEventListener('click', async () => {
+  flushSave();
+  await saveQueue;
+  savedSearch.value = '';
+  await renderSaved();
+  savedDialog.showModal();
+});
+$('#savedClose').addEventListener('click', () => savedDialog.close());
+savedDialog.addEventListener('click', (e) => { if (e.target === savedDialog) savedDialog.close(); });
+savedSearch.addEventListener('input', renderSaved);
 
 // ---------- Init ----------
 resetForm();
